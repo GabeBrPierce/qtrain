@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QRNG Trainer</title>
+<style>
+:root {
+  --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1f23; --muted: #6b6f78; --line: #dddbd3;
+  --accent: #3a5bd9; --hit: #1f8a4c; --miss: #b23b3b; --band: rgba(58,91,217,.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14161a; --panel: #1d2026; --ink: #e8e9ec; --muted: #9aa0ab; --line: #2e323a;
+    --accent: #7d97ff; --hit: #4cc282; --miss: #ef6f6f; --band: rgba(125,151,255,.12);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14161a; --panel: #1d2026; --ink: #e8e9ec; --muted: #9aa0ab; --line: #2e323a;
+  --accent: #7d97ff; --hit: #4cc282; --miss: #ef6f6f; --band: rgba(125,151,255,.12);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 920px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 16px; margin: 0 0 12px; }
+.sub { color: var(--muted); margin: 0 0 20px; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 20px; flex-wrap: wrap; }
+.tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 14px; color: var(--muted); font: inherit; cursor: pointer; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-color: var(--accent); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 8px; padding: 10px 16px; cursor: pointer; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn:disabled { opacity: .5; cursor: default; }
+.choice { min-width: 64px; font-size: 20px; font-weight: 600; padding: 14px 0; }
+select, input[type=number] { font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+.result { font-size: 18px; min-height: 28px; margin-top: 14px; }
+.hit { color: var(--hit); } .miss { color: var(--miss); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 14px; }
+.stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.stat b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 12px; }
+canvas { width: 100%; height: 220px; display: block; }
+.note { color: var(--muted); font-size: 13px; }
+.verdict { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); margin-top: 12px; }
+.hidden { display: none; }
+.progress { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-top: 10px; }
+.progress > div { height: 100%; background: var(--accent); width: 0; transition: width .2s; }
+p { margin: 0 0 10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>QRNG Trainer</h1>
+  <p class="sub">Predict or "push" numbers from <code>lizaonair.com/qrng</code>, then see whether you beat chance. <span id="meta"></span></p>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="predict" aria-selected="true">Predict</button>
+    <button role="tab" data-tab="influence" aria-selected="false">Influence</button>
+    <button role="tab" data-tab="about" aria-selected="false">The science</button>
+  </div>
+
+  <!-- PREDICT -->
+  <section id="tab-predict">
+    <div class="panel">
+      <h2>Precognition drill</h2>
+      <p class="note">Pick an option. The number is fetched only after you commit, so nothing on screen can leak it.</p>
+      <div class="row" style="margin-bottom:14px">
+        <label>Options <select id="pOptions"><option value="2">2 (coin)</option><option value="4" selected>4 (suits)</option><option value="10">10 (digits)</option></select></label>
+        <label>Session length <input id="pGoal" type="number" min="10" max="1000" value="100" style="width:80px"></label>
+      </div>
+      <div class="row" id="pChoices"></div>
+      <div class="result" id="pResult"></div>
+      <div class="progress"><div id="pProg"></div></div>
+      <div class="stats" id="pStats"></div>
+      <div class="verdict hidden" id="pVerdict"></div>
+      <div class="row" style="margin-top:14px"><button class="btn" id="pReset">New session</button></div>
+    </div>
+  </section>
+
+  <!-- INFLUENCE -->
+  <section id="tab-influence" class="hidden">
+    <div class="panel">
+      <h2>Intention drill (micro-PK)</h2>
+      <p class="note">Choose an aim, press Start, and focus while 200 bits are drawn. Mix in control runs (no intention) to see what plain chance looks like on the same chart.</p>
+      <div class="row" style="margin-bottom:14px">
+        <label>Aim <select id="iAim"><option value="1">More 1s (line goes up)</option><option value="0">More 0s (line goes up)</option></select></label>
+        <label>Runs per session <input id="iGoal" type="number" min="5" max="200" value="20" style="width:70px"></label>
+      </div>
+      <div class="row">
+        <button class="btn primary" id="iStart">Start intention run</button>
+        <button class="btn" id="iControl">Control run</button>
+      </div>
+      <div class="result" id="iResult"></div>
+      <canvas id="iCanvas"></canvas>
+      <p class="note">Line: cumulative hits minus expected, across all intention bits this session. Shaded band: 95% range for pure chance.</p>
+      <div class="progress"><div id="iProg"></div></div>
+      <div class="stats" id="iStats"></div>
+      <div class="verdict hidden" id="iVerdict"></div>
+      <div class="row" style="margin-top:14px"><button class="btn" id="iReset">New session</button></div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="tab-about" class="hidden">
+    <div class="panel">
+      <h2>What the research says</h2>
+      <p><b>The claim.</b> Princeton's PEAR lab (1979 to 2007) and others reported that people could nudge hardware random number generators by intention, by tiny amounts (around 1 extra hit per 10,000).</p>
+      <p><b>The meta-analysis.</b> Bösch, Steinkamp &amp; Boller (Psychological Bulletin, 2006) pooled 380 RNG studies. They found a minuscule effect, with the smallest studies showing the biggest effects, a pattern typical of publication bias, and concluded the result could be explained by it.</p>
+      <p><b>Replication.</b> A large preregistered study by Maier et al. (Frontiers in Psychology, 2018) found Bayesian evidence <i>against</i> intention effects on quantum randomness. PEAR's own multi-lab replication did not reproduce its earlier results.</p>
+      <p><b>About this source.</b> The lizaonair service measures one quantum seed from ANU's vacuum-fluctuation lab every ~8 hours, then expands it with HMAC-SHA256. So individual numbers are not separate quantum events: between seed refreshes, they are fixed by a deterministic algorithm and a counter shared with every other user. Even if mind-over-matter were real, there is no quantum measurement happening when you press the button.</p>
+      <p><b>What this means for odds.</b> No skill has been shown to beat a properly random source. Casinos, lotteries and online games use the same kind of generator, so practice here will not shift odds there. Use this app as an honest test: set a session length before you start, finish it, and read the verdict. Stopping when you are ahead is the most common way people fool themselves.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+// Standard normal CDF (Abramowitz-Stegun 7.1.26 via erf).
+function phi(z) {
+  const t = 1 / (1 + 0.3275911 * Math.abs(z) / Math.SQRT2);
+  const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-z * z / 2);
+  return z >= 0 ? (1 + y) / 2 : (1 - y) / 2;
+}
+// One-sided binomial test vs chance, normal approximation with continuity correction.
+function score(hits, n, p) {
+  if (!n) return { z: 0, pval: 1 };
+  const sd = Math.sqrt(n * p * (1 - p));
+  const z = (hits - n * p - 0.5) / sd;
+  return { z, pval: 1 - phi(z) };
+}
+function statsHtml(hits, n, p) {
+  const { z, pval } = score(hits, n, p);
+  const cell = (v, l) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`;
+  return cell(n, "trials") + cell(hits, "hits") + cell((n * p).toFixed(1), "expected by chance") +
+    cell(n ? (100 * hits / n).toFixed(1) + "%" : "-", `hit rate (chance ${(100 * p).toFixed(0)}%)`) +
+    cell(n ? z.toFixed(2) : "-", "z-score") + cell(n ? pval.toFixed(3) : "-", "p (one-sided)");
+}
+function verdictHtml(hits, n, p) {
+  const { z, pval } = score(hits, n, p);
+  if (pval < 0.01) return `<b>Above chance (p = ${pval.toFixed(4)}).</b> Interesting, but one session proves little. Run another full session at the same length before believing it; at p &lt; 0.01, about 1 honest session in 100 lands here by luck alone.`;
+  if (pval < 0.05) return `<b>Borderline (p = ${pval.toFixed(3)}).</b> About 1 session in 20 hits this by luck. Treat as noise unless it repeats.`;
+  return `<b>Consistent with chance (z = ${z.toFixed(2)}).</b> This is what a random guesser scores.`;
+}
+
+async function api(path) {
+  const r = await fetch(path);
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.status);
+  return j;
+}
+
+// Tabs
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
+  ["predict", "influence", "about"].forEach(t => $("tab-" + t).classList.toggle("hidden", t !== b.dataset.tab));
+  if (b.dataset.tab === "influence") drawChart();
+});
+
+api("/api/meta").then(m => $("meta").textContent = `Seed age: ${(m.seed_age_sec / 3600).toFixed(1)} h.`).catch(() => {});
+
+// ---------- Predict ----------
+const SUITS = ["♠", "♥", "♦", "♣"];
+let P = store.get("qt.predict", { k: 4, goal: 100, n: 0, hits: 0 });
+const label = (k, i) => k === 2 ? (i ? "1" : "0") : k === 4 ? SUITS[i] : String(i);
+
+function renderPredict() {
+  $("pOptions").value = P.k; $("pGoal").value = P.goal;
+  $("pOptions").disabled = $("pGoal").disabled = P.n > 0;
+  const done = P.n >= P.goal;
+  $("pChoices").innerHTML = Array.from({ length: P.k }, (_, i) =>
+    `<button class="btn choice" data-i="${i}" ${done ? "disabled" : ""}>${label(P.k, i)}</button>`).join("");
+  $("pChoices").querySelectorAll("button").forEach(b => b.onclick = () => guess(+b.dataset.i));
+  $("pStats").innerHTML = statsHtml(P.hits, P.n, 1 / P.k);
+  $("pProg").style.width = Math.min(100, 100 * P.n / P.goal) + "%";
+  $("pVerdict").classList.toggle("hidden", !done);
+  if (done) $("pVerdict").innerHTML = verdictHtml(P.hits, P.n, 1 / P.k);
+}
+async function guess(i) {
+  $("pChoices").querySelectorAll("button").forEach(b => b.disabled = true);
+  $("pResult").textContent = "Drawing...";
+  try {
+    const { value } = await api(`/api/int?min=0&max=${P.k - 1}`);
+    const hit = value === i;
+    P.n++; if (hit) P.hits++;
+    store.set("qt.predict", P);
+    $("pResult").innerHTML = `You chose ${label(P.k, i)}, drew ${label(P.k, value)}: <span class="${hit ? "hit" : "miss"}">${hit ? "hit" : "miss"}</span>`;
+  } catch (e) { $("pResult").textContent = "Fetch failed: " + e.message; }
+  renderPredict();
+}
+$("pOptions").onchange = () => { P.k = +$("pOptions").value; store.set("qt.predict", P); renderPredict(); };
+$("pGoal").onchange = () => { P.goal = Math.max(10, +$("pGoal").value || 100); store.set("qt.predict", P); renderPredict(); };
+$("pReset").onclick = () => { P = { k: P.k, goal: P.goal, n: 0, hits: 0 }; store.set("qt.predict", P); $("pResult").textContent = ""; renderPredict(); };
+document.addEventListener("keydown", e => {
+  if ($("tab-predict").classList.contains("hidden")) return;
+  const i = parseInt(e.key, 10);
+  if (i >= 0 && i < P.k && P.n < P.goal) guess(i);
+});
+renderPredict();
+
+// ---------- Influence ----------
+const RUN = 200;
+let I = store.get("qt.influence", { goal: 20, runs: 0, n: 0, hits: 0, path: [0], cRuns: 0, cN: 0, cHits: 0, cPath: [0] });
+let busy = false;
+
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function drawChart() {
+  const c = $("iCanvas"), dpr = devicePixelRatio || 1;
+  const w = c.clientWidth, h = c.clientHeight;
+  if (!w) return;
+  c.width = w * dpr; c.height = h * dpr;
+  const g = c.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
+  const N = Math.max(I.path.length - 1, I.cPath.length - 1, RUN);
+  const env = n => 1.96 * Math.sqrt(n * 0.25);
+  const maxY = Math.max(env(N) * 1.2, ...I.path.map(Math.abs), ...I.cPath.map(Math.abs), 5);
+  const X = n => 8 + (w - 16) * n / N, Y = d => h / 2 - (h / 2 - 8) * d / maxY;
+  g.fillStyle = css("--band"); g.beginPath();
+  for (let n = 0; n <= N; n += Math.max(1, N / 200 | 0)) g.lineTo(X(n), Y(env(n)));
+  for (let n = N; n >= 0; n -= Math.max(1, N / 200 | 0)) g.lineTo(X(n), Y(-env(n)));
+  g.fill();
+  g.strokeStyle = css("--line"); g.beginPath(); g.moveTo(X(0), Y(0)); g.lineTo(X(N), Y(0)); g.stroke();
+  const line = (pts, color, dash) => {
+    g.strokeStyle = color; g.lineWidth = 1.6; g.setLineDash(dash); g.beginPath();
+    pts.forEach((d, n) => n ? g.lineTo(X(n), Y(d)) : g.moveTo(X(0), Y(d))); g.stroke(); g.setLineDash([]);
+  };
+  line(I.cPath, css("--muted"), [4, 4]);
+  line(I.path, css("--accent"), []);
+}
+function renderInfluence() {
+  $("iGoal").value = I.goal; $("iGoal").disabled = I.runs > 0;
+  const done = I.runs >= I.goal;
+  $("iStart").disabled = busy || done; $("iControl").disabled = busy;
+  $("iStats").innerHTML = statsHtml(I.hits, I.n, 0.5) +
+    `<div class="stat"><b>${I.cN ? (100 * I.cHits / I.cN).toFixed(1) + "%" : "-"}</b><span>control hit rate (${I.cRuns} runs)</span></div>`;
+  $("iProg").style.width = Math.min(100, 100 * I.runs / I.goal) + "%";
+  $("iVerdict").classList.toggle("hidden", !done);
+  if (done) $("iVerdict").innerHTML = verdictHtml(I.hits, I.n, 0.5);
+  drawChart();
+}
+async function run(control) {
+  busy = true; renderInfluence();
+  $("iResult").textContent = control ? "Control run: relax, don't try..." : "Focus on your aim...";
+  try {
+    const aim = control ? 1 : +$("iAim").value;
+    const { bits } = await api(`/api/bits?n=${RUN}`);
+    const path = control ? I.cPath : I.path;
+    let runHits = 0;
+    // Reveal the bits gradually so there is something to focus on.
+    for (let k = 0; k < bits.length; k += 4) {
+      for (const b of bits.slice(k, k + 4)) {
+        const hit = b === aim; runHits += hit;
+        path.push(path[path.length - 1] + (hit ? 0.5 : -0.5));
+      }
+      drawChart();
+      await new Promise(r => setTimeout(r, 25));
+    }
+    if (control) { I.cRuns++; I.cN += RUN; I.cHits += runHits; }
+    else { I.runs++; I.n += RUN; I.hits += runHits; }
+    store.set("qt.influence", I);
+    $("iResult").innerHTML = `${control ? "Control" : "Run"}: ${runHits}/${RUN} hits ` +
+      `<span class="${runHits > RUN / 2 ? "hit" : runHits < RUN / 2 ? "miss" : ""}">(${runHits - RUN / 2 >= 0 ? "+" : ""}${runHits - RUN / 2})</span>`;
+  } catch (e) { $("iResult").textContent = "Fetch failed: " + e.message; }
+  busy = false; renderInfluence();
+}
+$("iStart").onclick = () => run(false);
+$("iControl").onclick = () => run(true);
+$("iGoal").onchange = () => { I.goal = Math.max(5, +$("iGoal").value || 20); store.set("qt.influence", I); renderInfluence(); };
+$("iReset").onclick = () => { I = { goal: I.goal, runs: 0, n: 0, hits: 0, path: [0], cRuns: 0, cN: 0, cHits: 0, cPath: [0] }; store.set("qt.influence", I); $("iResult").textContent = ""; renderInfluence(); };
+addEventListener("resize", drawChart);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawChart);
+renderInfluence();
+</script>
+</body>
+</html>
