@@ -1,0 +1,11 @@
+name = "qtrain"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "qtrain"
+database_id = "f765b01c-13da-4882-8813-251c4a19de7b"
+
+[triggers]
+crons = ["* * * * *"]
