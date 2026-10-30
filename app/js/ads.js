@@ -2,8 +2,13 @@
 (function (root) {
   'use strict';
   root.QTAds = {
-    show: function () {
-      if (typeof root.getKaiAd !== 'function') return;
+    // The SDK loads async; wait up to 10 s for it before giving up on this ad.
+    show: function (tries) {
+      tries = tries || 0;
+      if (typeof root.getKaiAd !== 'function') {
+        if (tries < 10) setTimeout(function () { root.QTAds.show(tries + 1); }, 1000);
+        return;
+      }
       var c = root.QTConfig.kaiads;
       try {
         root.getKaiAd({

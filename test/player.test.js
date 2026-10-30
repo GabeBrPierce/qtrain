@@ -69,14 +69,20 @@ test('practice history keeps last 20, newest first, and tracks best', () => {
   assert.equal(p.practiceBest(), 25);
 });
 
-test('pending pick round trip', () => {
+test('pending picks: several rounds tracked, open one found, removed when resolved', () => {
   const s = memStorage();
   const p = P.create(s);
-  assert.equal(p.pending(), null);
-  p.setPending({ roundId: 1793367000000, hex: '#FB253E' });
-  assert.deepEqual(P.create(s).pending(), { roundId: 1793367000000, hex: '#FB253E' });
-  p.setPending(null);
-  assert.equal(P.create(s).pending(), null);
+  const R = 1793367000000;
+  assert.deepEqual(p.pendings(), []);
+  p.addPending({ roundId: R, hex: '#FB253E' });
+  p.addPending({ roundId: R + 300000, hex: '#000000' });
+  p.addPending({ roundId: R + 300000, hex: '#111111' });
+  assert.equal(P.create(s).pendings().length, 2);
+  assert.equal(p.openPending(R - 1000).roundId, R);
+  assert.deepEqual(p.openPending(R + 1000), { roundId: R + 300000, hex: '#000000' });
+  assert.equal(p.openPending(R + 300000), null);
+  p.removePending(R);
+  assert.deepEqual(P.create(s).pendings().map(x => x.roundId), [R + 300000]);
 });
 
 test('works when storage throws', () => {

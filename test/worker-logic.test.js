@@ -24,8 +24,19 @@ test('choosePulse waits for a missing pulse inside the window', () => {
   assert.equal(B.choosePulse(CLOSE, null, CLOSE + 60000).status, 'wait');
 });
 
-test('choosePulse voids a missing pulse after the window', () => {
-  assert.equal(B.choosePulse(CLOSE, null, CLOSE + 240001).status, 'void');
+test('choosePulse keeps waiting while in-window pulses may still be publishing', () => {
+  assert.equal(B.choosePulse(CLOSE, null, CLOSE + 240001).status, 'wait');
+  assert.equal(B.choosePulse(CLOSE, null, CLOSE + 360000).status, 'wait');
+});
+
+test('choosePulse voids a missing pulse after the window plus publish allowance', () => {
+  assert.equal(B.choosePulse(CLOSE, null, CLOSE + 360001).status, 'void');
+});
+
+test('fetchPulseFrom passes a timeout signal', async () => {
+  let opts;
+  await B.fetchPulseFrom(CLOSE, (u, o) => { opts = o; return Promise.resolve({ ok: false, status: 404 }); });
+  assert.ok(opts.signal instanceof AbortSignal);
 });
 
 test('choosePulse ignores a pulse from before the close', () => {

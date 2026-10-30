@@ -2,6 +2,7 @@
 (function (root) {
   'use strict';
   var offset = 0;
+  var TIMEOUT_MS = 10000;
 
   function request(method, path, body) {
     var opts = { method: method, headers: {} };
@@ -9,10 +10,10 @@
       opts.headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(body);
     }
-    return fetch(root.QTConfig.apiBase + path, opts).then(function (res) {
+    return root.QTCore.withTimeout(fetch(root.QTConfig.apiBase + path, opts).then(function (res) {
       return res.json().then(function (b) { return { status: res.status, body: b }; },
         function () { return { status: res.status, body: {} }; });
-    }, function () { return { status: 0, body: {} }; });
+    }), TIMEOUT_MS, { status: 0, body: {} });
   }
 
   function q(playerId) { return playerId ? '?player=' + encodeURIComponent(playerId) : ''; }

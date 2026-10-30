@@ -45,6 +45,8 @@
     if (!s || typeof s !== 'object') s = {};
     if (!s.id) s.id = uuid();
     if (!s.history) s.history = [];
+    if (!s.pendings) s.pendings = s.pending ? [s.pending] : [];
+    delete s.pending;
     s.adCount = s.adCount || 0;
     s.streak = s.streak || 0;
     save();
@@ -83,8 +85,23 @@
         save();
         return s.adCount === 0;
       },
-      pending: function () { return s.pending || null; },
-      setPending: function (p) { s.pending = p || null; save(); }
+      // Competitive picks awaiting a result, oldest first. One per round.
+      pendings: function () { return s.pendings.slice(); },
+      addPending: function (p) {
+        for (var i = 0; i < s.pendings.length; i++) if (s.pendings[i].roundId === p.roundId) return;
+        s.pendings.push({ roundId: p.roundId, hex: p.hex });
+        s.pendings.sort(function (a, b) { return a.roundId - b.roundId; });
+        save();
+      },
+      removePending: function (roundId) {
+        s.pendings = s.pendings.filter(function (p) { return p.roundId !== roundId; });
+        save();
+      },
+      // The pick for a round that has not closed yet, if any.
+      openPending: function (nowMs) {
+        for (var i = 0; i < s.pendings.length; i++) if (s.pendings[i].roundId > nowMs) return s.pendings[i];
+        return null;
+      }
     };
   }
 

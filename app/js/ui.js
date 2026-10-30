@@ -9,8 +9,9 @@
   var screens = {};
   var current = null, currentName = '';
   var lastRoundId = null;      // most recent competitive round this player joined
-  var resultReady = null;      // resolved round waiting to be shown
-  var polling = false;
+  var results = [];           // resolved rounds waiting to be shown, oldest first
+  var polls = {};             // roundId -> { at, failed, busy }
+  var roundHint = null;       // open round named by the server's last 409
 
   // ---------- helpers ----------
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
@@ -69,10 +70,12 @@
       content('<div class="note">Pick a nickname for the boards (3-12 letters or numbers).</div>' +
         '<input class="nick" id="nick" maxlength="12" value="' + esc(player.nickname() || '') + '">' +
         '<div class="note" id="nick-err"></div>');
-      soft('', 'Save', 'Save');
+      soft(player.nickname() ? 'Cancel' : '', 'Save', 'Save');
       setTimeout(function () { $('nick').focus(); }, 50);
     },
     key: function (k) {
+      var canLeave = !!player.nickname();
+      if (canLeave && (k === 'SoftLeft' || (k === 'Backspace' && $('nick').value === ''))) { $('nick').blur(); go('home'); return true; }
       if (k === 'Enter' || k === 'SoftRight') {
         if (player.setNickname($('nick').value.trim())) { $('nick').blur(); go('home'); }
         else $('nick-err').textContent = 'Use 3-12 letters or numbers.';
@@ -91,12 +94,12 @@
       this.render();
       soft('', 'Select', '');
       if (!adShownOnOpen) { adShownOnOpen = true; Ads.show(); }
-      if (resultReady) showResult();
+      if (results.length) showResult();
     },
     render: function () {
       var open = Core.openRoundFor(Api.now());
-      var p = player.pending();
-      var compLabel = p && p.roundId > Api.now() - Core.PULSE_WINDOW_MS ? 'Locked in for ' + clock(p.roundId) : 'Next round ' + clock(open);
+      var p = player.openPending(Api.now());
+      var compLabel = p ? 'Locked in for ' + clock(p.roundId) : 'Next round ' + clock(open);
       content(menu([
         'Competitive<small>' + compLabel + ' &middot; ' + mmss(open - Core.LOCK_MS - Api.now()) + '</small>',
         'Practice<small>Instant rounds' + (player.practiceBest() != null ? ' &middot; best ' + player.practiceBest() + '%' : '') + '</small>',
@@ -116,8 +119,7 @@
   };
   function openHome(item) {
     if (item === 'competitive') {
-      var p = player.pending();
-      if (p) go('locked'); else go('pick', 'competitive');
+      if (player.openPending(Api.now())) go('locked'); else go('pick', 'competitive');
     } else if (item === 'practice') go('pick', 'practice');
     else go(item);
   }
@@ -172,20 +174,22 @@
       });
       return;
     }
-    var roundId = Core.openRoundFor(Api.now());
+    var roundId = Core.roundForSubmit(Api.now(), roundHint);
     Api.pick({ playerId: player.id(), nickname: player.nickname(), roundId: roundId, hex: hex }).then(function (r) {
       busy = false;
       if (r.status === 200) {
-        player.setPending({ roundId: roundId, hex: hex });
+        roundHint = null;
+        player.addPending({ roundId: roundId, hex: hex });
         player.recordCompetitive(Core.dayKey(Api.now()));
         lastRoundId = roundId;
         go('locked');
       } else if (r.status === 409 && r.body.error === 'round_closed') {
+        roundHint = r.body.openRoundId;
         Api.syncClock();
         screens.pick.render();
         toast('That round just closed. Submit again for ' + clock(r.body.openRoundId) + '.');
       } else if (r.status === 409 && r.body.error === 'already_picked') {
-        if (!player.pending()) player.setPending({ roundId: roundId, hex: hex });
+        player.addPending({ roundId: roundId, hex: hex });
         lastRoundId = roundId;
         go('locked');
       } else {
@@ -196,9 +200,13 @@
   }
 
   // ---------- Locked in ----------
+  function lockedPick() {
+    var list = player.pendings();
+    return player.openPending(Api.now()) || list[list.length - 1] || null;
+  }
   screens.locked = {
     enter: function () {
-      var p = player.pending();
+      var p = lockedPick();
       if (!p) { go('home'); return; }
       header('Locked in', 'Round ' + clock(p.roundId));
       content('<div class="big"><div class="swatch" style="background:' + esc(p.hex) + '"></div>' +
@@ -207,11 +215,12 @@
       this.tick();
     },
     tick: function () {
-      var p = player.pending();
+      var p = lockedPick();
       if (!p) return;
       var left = p.roundId - Api.now();
       $('lk-timer').textContent = left > 0 ? mmss(left) : '...';
-      $('lk-note').textContent = left > 0 ? 'The NIST beacon pulse at ' + clock(p.roundId) + ' decides the color.' : 'Waiting for the beacon pulse...';
+      $('lk-note').textContent = left > 0 ? 'The NIST beacon pulse at ' + clock(p.roundId) + ' decides the color.' :
+        'Waiting for the beacon pulse. Back to pick for ' + clock(Core.openRoundFor(Api.now())) + '.';
     },
     key: function (k) {
       if (k === 'SoftLeft') { go('pick', 'practice'); return true; }
@@ -223,26 +232,28 @@
 
   // ---------- Results ----------
   function pollPending() {
-    var p = player.pending();
-    if (!p || polling || resultReady || Api.now() < p.roundId + 3000) return;
-    polling = true;
-    Api.round(p.roundId, player.id()).then(function (r) {
-      polling = false;
-      if (r.status !== 200) return;
-      if (r.body.status === 'resolved' || r.body.status === 'void') {
-        resultReady = r.body;
-        player.setPending(null);
+    var now = Api.now();
+    player.pendings().forEach(function (p) {
+      var st = polls[p.roundId] || (polls[p.roundId] = { at: 0, failed: false, busy: false });
+      if (st.busy || !Core.shouldPoll(now, p.roundId, st.at, st.failed)) return;
+      st.busy = true;
+      st.at = now;
+      Api.round(p.roundId, player.id()).then(function (r) {
+        st.busy = false;
+        st.failed = r.status !== 200;
+        if (st.failed || (r.body.status !== 'resolved' && r.body.status !== 'void')) return;
+        delete polls[p.roundId];
+        player.removePending(p.roundId);
         lastRoundId = r.body.roundId;
+        results.push(r.body);
         if (currentName === 'locked' || currentName === 'home') showResult();
         else toast('Round ' + clock(r.body.roundId) + ' result is ready on Home.');
-      }
+      });
     });
   }
 
   function showResult() {
-    var r = resultReady;
-    resultReady = null;
-    go('result', r);
+    go('result', results.shift());
   }
 
   var lastResult = null;
@@ -320,7 +331,7 @@
       content('<div class="tabs">' + TAB_LBL.map(function (l, i) {
         return '<span data-tab="' + i + '" class="' + (i === tab ? 'on' : '') + '">' + l + '</span>';
       }).join('') + '</div><div class="lb" id="lb"><div>Loading...</div></div>');
-      var rid = lastRoundId || (player.pending() && player.pending().roundId);
+      var rid = lastRoundId || (player.pendings()[0] && player.pendings()[0].roundId);
       if (t === 'round' && !rid) { $('lb').innerHTML = '<div>Play a competitive round first.</div>'; return; }
       var p = t === 'round' ? Api.round(rid, player.id()) : Api.board(t, player.id());
       p.then(function (r) {
@@ -382,7 +393,8 @@
   document.addEventListener('keydown', function (ev) {
     var k = ev.key;
     var typing = ev.target && ev.target.tagName === 'INPUT';
-    if (typing && k !== 'Enter' && k !== 'SoftRight' && k !== 'SoftLeft') return;
+    var emptyBack = typing && k === 'Backspace' && ev.target.value === '';
+    if (typing && !emptyBack && k !== 'Enter' && k !== 'SoftRight' && k !== 'SoftLeft') return;
     if (!typing && ALIASES[k]) k = ALIASES[k];
     if (current && current.key(k)) ev.preventDefault();
   });
@@ -406,9 +418,8 @@
   }, 1000);
   setInterval(function () { Api.syncClock(); }, 300000);
 
-  Api.syncClock().then(function () {
-    var p = player.pending();
-    if (p) lastRoundId = p.roundId;
-    go(player.nickname() ? 'home' : 'nick');
-  });
+  var first = player.pendings()[0];
+  if (first) lastRoundId = first.roundId;
+  go(player.nickname() ? 'home' : 'nick');
+  Api.syncClock();
 })(this);

@@ -41,17 +41,20 @@ function roundPicks(db, roundId) {
     .bind(roundId).all().then(r => r.results);
 }
 
+// Only an 'open' round can change state, so overlapping cron runs cannot flip a decided round.
+// Picks are scored only when this batch is the one that resolved the round.
 function resolveRound(db, roundId, pulseIndex, hex, ranked, nowMs) {
-  const stmts = ranked.map(p =>
-    db.prepare('UPDATE picks SET closeness = ?1, rank = ?2 WHERE round_id = ?3 AND player_id = ?4')
-      .bind(p.closeness, p.rank, roundId, p.playerId));
-  stmts.push(db.prepare("UPDATE rounds SET status = 'resolved', pulse_index = ?1, hex = ?2, resolved_at = ?3 WHERE round_id = ?4")
-    .bind(pulseIndex, hex, nowMs, roundId));
+  const stmts = [db.prepare("UPDATE rounds SET status = 'resolved', pulse_index = ?1, hex = ?2, resolved_at = ?3 WHERE round_id = ?4 AND status = 'open'")
+    .bind(pulseIndex, hex, nowMs, roundId)];
+  ranked.forEach(p => stmts.push(
+    db.prepare('UPDATE picks SET closeness = ?1, rank = ?2 WHERE round_id = ?3 AND player_id = ?4 AND ' +
+      "(SELECT resolved_at FROM rounds WHERE round_id = ?3 AND status = 'resolved') = ?5")
+      .bind(p.closeness, p.rank, roundId, p.playerId, nowMs)));
   return db.batch(stmts);
 }
 
 function voidRound(db, roundId, nowMs) {
-  return db.prepare("UPDATE rounds SET status = 'void', resolved_at = ?1 WHERE round_id = ?2").bind(nowMs, roundId).run();
+  return db.prepare("UPDATE rounds SET status = 'void', resolved_at = ?1 WHERE round_id = ?2 AND status = 'open'").bind(nowMs, roundId).run();
 }
 
 // Each player's best resolved pick in the period, ranked; top `limit` plus the given player.

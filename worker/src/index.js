@@ -88,13 +88,17 @@ async function handlePractice() {
 export async function resolveDue(env, now) {
   const ids = await db.dueRounds(env.DB, now);
   for (const id of ids) {
-    const pulse = await beacon.fetchPulseFrom(id, fetch);
-    const choice = beacon.choosePulse(id, pulse, now);
-    if (choice.status === 'void') await db.voidRound(env.DB, id, now);
-    if (choice.status !== 'ok') continue;
-    const rgb = core.rgbFromOutputValue(choice.pulse.outputValue);
-    const ranked = rank.rankPicks(await db.roundPicks(env.DB, id), rgb);
-    await db.resolveRound(env.DB, id, choice.pulse.pulseIndex, core.toHex(rgb), ranked, now);
+    try {
+      const pulse = await beacon.fetchPulseFrom(id, fetch);
+      const choice = beacon.choosePulse(id, pulse, Date.now());
+      if (choice.status === 'void') await db.voidRound(env.DB, id, Date.now());
+      if (choice.status !== 'ok') continue;
+      const rgb = core.rgbFromOutputValue(choice.pulse.outputValue);
+      const ranked = rank.rankPicks(await db.roundPicks(env.DB, id), rgb);
+      await db.resolveRound(env.DB, id, choice.pulse.pulseIndex, core.toHex(rgb), ranked, Date.now());
+    } catch (e) {
+      console.error('resolve failed for round', id, e);
+    }
   }
 }
 

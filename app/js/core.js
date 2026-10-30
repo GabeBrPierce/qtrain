@@ -69,12 +69,31 @@
     return year + '-W' + pad2(week);
   }
 
+  // Resolves to fallback if the promise has not settled within ms (Gecko's fetch never times out).
+  function withTimeout(promise, ms, fallback) {
+    return new Promise(function (resolve) {
+      var t = setTimeout(function () { resolve(fallback); }, ms);
+      promise.then(function (v) { clearTimeout(t); resolve(v); }, function () { clearTimeout(t); resolve(fallback); });
+    });
+  }
+
+  // Results cannot exist before the pulse is published (~60-80 s after close).
+  function shouldPoll(nowMs, roundId, lastPollMs, failed) {
+    return nowMs >= roundId + 60000 && nowMs - lastPollMs >= (failed ? 30000 : 15000);
+  }
+
+  // The round named by the server's last 409 wins while it is still accepting picks.
+  function roundForSubmit(nowMs, hint) {
+    return hint && hint - LOCK_MS > nowMs ? hint : openRoundFor(nowMs);
+  }
+
   var api = {
     BASE: BASE, BASE_NAMES: BASE_NAMES,
     ROUND_MS: ROUND_MS, LOCK_MS: LOCK_MS, PULSE_WINDOW_MS: PULSE_WINDOW_MS,
     stepAt: stepAt, optionsFor: optionsFor, toHex: toHex, fromHex: fromHex,
     closeness: closeness, rgbFromOutputValue: rgbFromOutputValue,
-    openRoundFor: openRoundFor, dayKey: dayKey, weekKey: weekKey
+    openRoundFor: openRoundFor, dayKey: dayKey, weekKey: weekKey,
+    withTimeout: withTimeout, shouldPoll: shouldPoll, roundForSubmit: roundForSubmit
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.QTCore = api;

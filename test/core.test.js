@@ -61,3 +61,28 @@ test('day and week keys', () => {
   assert.equal(C.weekKey(Date.UTC(2027, 0, 1)), '2026-W53');
   assert.equal(C.weekKey(Date.UTC(2026, 0, 5)), '2026-W02');
 });
+
+test('withTimeout resolves the fallback when the promise hangs', async () => {
+  const r = await C.withTimeout(new Promise(() => {}), 20, { status: 0 });
+  assert.deepEqual(r, { status: 0 });
+  assert.equal(await C.withTimeout(Promise.resolve(7), 1000, 0), 7);
+});
+
+test('shouldPoll waits 60 s after close, then every 15 s, 30 s after a failure', () => {
+  const close = Date.UTC(2026, 9, 30, 14, 35);
+  assert.equal(C.shouldPoll(close + 59999, close, 0, false), false);
+  assert.equal(C.shouldPoll(close + 60000, close, 0, false), true);
+  assert.equal(C.shouldPoll(close + 70000, close, close + 60000, false), false);
+  assert.equal(C.shouldPoll(close + 75000, close, close + 60000, false), true);
+  assert.equal(C.shouldPoll(close + 75000, close, close + 60000, true), false);
+  assert.equal(C.shouldPoll(close + 90000, close, close + 60000, true), true);
+});
+
+test('roundForSubmit prefers the server hint while it is still open', () => {
+  const close = Date.UTC(2026, 9, 30, 14, 35);
+  // phone clock 20 s behind: thinks the old round is open, server named the next one
+  assert.equal(C.roundForSubmit(close - 20000, close + 300000), close + 300000);
+  assert.equal(C.roundForSubmit(close - 60000, null), close);
+  // stale hint (already locked) is ignored
+  assert.equal(C.roundForSubmit(close + 295000, close + 300000), close + 600000);
+});
