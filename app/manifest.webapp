@@ -1,0 +1,29 @@
+{
+  "name": "QTrain",
+  "version": "1.0.0",
+  "subtitle": "Sense the beacon's next color",
+  "description": "Guess the color the NIST randomness beacon draws every 5 minutes. Closest pick tops the boards.",
+  "type": "web",
+  "launch_path": "/qtrain/index.html",
+  "icons": {
+    "56": "/qtrain/icons/56.png",
+    "112": "/qtrain/icons/112.png"
+  },
+  "developer": {
+    "name": "QTrain"
+  },
+  "locales": {
+    "en-US": {
+      "name": "QTrain",
+      "subtitle": "Sense the beacon's next color",
+      "description": "Guess the color the NIST randomness beacon draws every 5 minutes. Closest pick tops the boards."
+    }
+  },
+  "default_locale": "en-US",
+  "categories": ["games"],
+  "permissions": {
+    "mobiledata": {},
+    "wifidata": {},
+    "calllog": {}
+  }
+}
