@@ -16,7 +16,7 @@
   "b2g_features": {
     "version": "3.0.0",
     "subtitle": "Sense the beacon's next color",
-    "developer": { "name": "QTrain" },
+    "developer": { "name": "QTrain", "url": "https://gabebrpierce.github.io/qtrain/" },
     "categories": ["games"],
     "permissions": {
       "mobiledata": {},

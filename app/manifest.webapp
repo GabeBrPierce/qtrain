@@ -10,7 +10,8 @@
     "112": "/qtrain/icons/112.png"
   },
   "developer": {
-    "name": "QTrain"
+    "name": "QTrain",
+    "url": "https://gabebrpierce.github.io/qtrain/"
   },
   "locales": {
     "en-US": {
