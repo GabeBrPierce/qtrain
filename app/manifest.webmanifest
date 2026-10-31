@@ -13,6 +13,18 @@
     { "src": "https://raw.githubusercontent.com/GabeBrPierce/qtrain/main/app/icons/112.png", "sizes": "112x112", "type": "image/png" }
   ],
   "lang": "en-US",
+  "version": "1.0.0",
+  "type": "web",
+  "subtitle": "Sense the beacon's next color",
+  "developer": { "name": "QTrain", "url": "https://gabebrpierce.github.io/qtrain/" },
+  "default_locale": "en-US",
+  "locales": {
+    "en-US": {
+      "name": "QTrain",
+      "subtitle": "Sense the beacon's next color",
+      "description": "Guess the color the NIST randomness beacon draws every 5 minutes. Closest pick tops the boards."
+    }
+  },
   "b2g_features": {
     "version": "3.0.0",
     "subtitle": "Sense the beacon's next color",
