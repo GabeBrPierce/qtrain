@@ -9,8 +9,8 @@
   "background_color": "#111111",
   "theme_color": "#2b2d5c",
   "icons": [
-    { "src": "/qtrain/icons/56.png", "sizes": "56x56", "type": "image/png" },
-    { "src": "/qtrain/icons/112.png", "sizes": "112x112", "type": "image/png" }
+    { "src": "https://gabebrpierce.github.io/qtrain/icons/56.png", "sizes": "56x56", "type": "image/png" },
+    { "src": "https://gabebrpierce.github.io/qtrain/icons/112.png", "sizes": "112x112", "type": "image/png" }
   ],
   "lang": "en-US",
   "b2g_features": {

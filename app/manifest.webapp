@@ -6,8 +6,8 @@
   "type": "web",
   "launch_path": "/qtrain/index.html",
   "icons": {
-    "56": "/qtrain/icons/56.png",
-    "112": "/qtrain/icons/112.png"
+    "56": "https://gabebrpierce.github.io/qtrain/icons/56.png",
+    "112": "https://gabebrpierce.github.io/qtrain/icons/112.png"
   },
   "developer": {
     "name": "QTrain",
