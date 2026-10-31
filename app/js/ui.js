@@ -40,7 +40,16 @@
     toastTimer = setTimeout(function () { t.className = 'hidden'; }, 2500);
   }
 
+  // Scroll #content just enough to show the highlighted menu row.
+  function showSel() {
+    var c = $('content'), s = c.querySelector('.sel');
+    if (!s) return;
+    if (s.offsetTop < c.scrollTop) c.scrollTop = s.previousSibling ? s.offsetTop : 0;
+    else if (s.offsetTop + s.offsetHeight > c.scrollTop + c.clientHeight) c.scrollTop = s.offsetTop + s.offsetHeight - c.clientHeight;
+  }
+
   function go(name, arg) {
+    $('content').scrollTop = 0;
     currentName = name;
     current = screens[name];
     current.enter(arg);
@@ -107,6 +116,7 @@
         'Nickname<small>' + esc(player.nickname() || '') + ' &middot; streak ' + player.streak() + 'd</small>',
         'How it works'
       ], homeSel));
+      showSel();
     },
     tick: function () { this.render(); },
     key: function (k) {
