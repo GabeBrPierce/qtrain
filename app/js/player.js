@@ -97,6 +97,11 @@
         s.pendings = s.pendings.filter(function (p) { return p.roundId !== roundId; });
         save();
       },
+      // "How it works" opens on first run and after every app update.
+      needsIntro: function (version) { return s.introSeen !== version; },
+      markIntroSeen: function (version) { s.introSeen = version; save(); },
+      sound: function () { return s.sound !== false; },
+      toggleSound: function () { s.sound = s.sound === false; save(); return s.sound; },
       // The pick for a round that has not closed yet, if any.
       openPending: function (nowMs) {
         for (var i = 0; i < s.pendings.length; i++) if (s.pendings[i].roundId > nowMs) return s.pendings[i];

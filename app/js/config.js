@@ -3,6 +3,8 @@
   'use strict';
   var local = /^(localhost|127\.0\.0\.1)$/.test(root.location.hostname);
   root.QTConfig = {
+    // The deploy workflow replaces 'dev' with the commit id, so "How it works" reopens after every update.
+    version: 'dev',
     apiBase: local ? 'http://127.0.0.1:8787' : 'https://qtrain.help-agapebible.workers.dev',
     kaiads: {
       publisher: '0b1f52de-82bb-4c58-b2e4-1b125c046417',

@@ -85,6 +85,24 @@ test('pending picks: several rounds tracked, open one found, removed when resolv
   assert.deepEqual(P.create(s).pendings().map(x => x.roundId), [R + 300000]);
 });
 
+test('intro shows on first run and again after each version change', () => {
+  const s = memStorage();
+  const p = P.create(s);
+  assert.equal(p.needsIntro('1.1.0'), true);
+  p.markIntroSeen('1.1.0');
+  assert.equal(P.create(s).needsIntro('1.1.0'), false);
+  assert.equal(P.create(s).needsIntro('1.2.0'), true);
+});
+
+test('sound defaults on, toggles and persists', () => {
+  const s = memStorage();
+  const p = P.create(s);
+  assert.equal(p.sound(), true);
+  assert.equal(p.toggleSound(), false);
+  assert.equal(P.create(s).sound(), false);
+  assert.equal(p.toggleSound(), true);
+});
+
 test('works when storage throws', () => {
   const bad = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); } };
   const p = P.create(bad);

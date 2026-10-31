@@ -27,6 +27,8 @@ jobs:
         with:
           node-version: 22
       - run: node --test "test/*.test.js"
+      - name: Stamp the app version
+        run: sed -i "s/version: 'dev'/version: '${GITHUB_SHA::7}'/" app/js/config.js && grep -q "version: '${GITHUB_SHA::7}'" app/js/config.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

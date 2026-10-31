@@ -51,6 +51,44 @@ body { font-family: "Open Sans", sans-serif; color: #fff; overflow: hidden; }
 .lb .me { color: #ffd76a; }
 .lb i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
 
+/* Animations: transform and opacity only, short, so low-end KaiOS phones keep up. */
+#content.enter { animation: screenIn .22s ease-out; }
+@keyframes screenIn { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+.grid.zin { animation: zoomIn .2s ease-out; }
+.grid.zout { animation: zoomOut .2s ease-out; }
+@keyframes zoomIn { from { opacity: .4; transform: scale(1.12); } to { opacity: 1; transform: none; } }
+@keyframes zoomOut { from { opacity: .4; transform: scale(.88); } to { opacity: 1; transform: none; } }
+.cell.center { animation: glow 1.4s ease-in-out infinite; }
+@keyframes glow { 50% { box-shadow: 0 0 10px 2px rgba(255,255,255,.7) inset; } }
+.menu li.sel { box-shadow: 4px 0 0 #8a8fff inset; }
+.breathe { animation: breathe 2.4s ease-in-out infinite; }
+@keyframes breathe { 50% { transform: scale(1.07); box-shadow: 0 0 22px rgba(255,255,255,.35); } }
+.timer.hurry { color: #ff6b6b; animation: beat 1s ease-out infinite; }
+@keyframes beat { 0% { transform: scale(1.18); } 40% { transform: none; } }
+.pair > div:first-child { animation: inL .4s ease-out; }
+.pair > div:last-child { animation: inR .4s ease-out; }
+@keyframes inL { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: none; } }
+@keyframes inR { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+.score.pop { animation: pop .35s ease-out; }
+@keyframes pop { 40% { transform: scale(1.3); } }
+.spark { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; pointer-events: none; transition: transform .7s ease-out, opacity .7s ease-in; }
+.ring { position: absolute; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; border: 2px solid #fff; pointer-events: none; opacity: .9; transition: transform .6s ease-out, opacity .6s ease-in; }
+.ring.go { transform: scale(8); opacity: 0; }
+.lb > div { animation: rowIn .3s ease-out both; }
+@keyframes rowIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+#toast:not(.hidden) { animation: toastIn .25s ease-out; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+#soft span.press { animation: press .25s ease-out; }
+@keyframes press { 0% { color: #8a8fff; transform: scale(.9); } }
+input.nick.shake { animation: shake .35s ease-in-out; }
+@keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+.logo { display: flex; flex-wrap: wrap; width: 54px; margin: 4px auto 10px; }
+.logo i { width: 14px; height: 14px; margin: 2px; border-radius: 4px; animation: twinkle 1.8s ease-in-out infinite; }
+@keyframes twinkle { 50% { transform: scale(.6); opacity: .5; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
 input.nick { width: 200px; margin: 8px 20px; font-size: 18px; padding: 6px; text-transform: uppercase; background: #222; color: #fff; border: 1px solid #555; }
 .about { font-size: 12px; line-height: 1.4; padding: 6px 10px; height: 100%; overflow-y: auto; box-sizing: border-box; }
 .about p { margin: 0 0 8px; }
