@@ -87,13 +87,19 @@
     return hint && hint - LOCK_MS > nowMs ? hint : openRoundFor(nowMs);
   }
 
+  // Local time as h:mm AM/PM.
+  function clock(ms) {
+    var d = new Date(ms), h = d.getHours(), m = d.getMinutes();
+    return (h % 12 || 12) + ':' + (m < 10 ? '0' : '') + m + (h < 12 ? ' AM' : ' PM');
+  }
+
   var api = {
     BASE: BASE, BASE_NAMES: BASE_NAMES,
     ROUND_MS: ROUND_MS, LOCK_MS: LOCK_MS, PULSE_WINDOW_MS: PULSE_WINDOW_MS,
     stepAt: stepAt, optionsFor: optionsFor, toHex: toHex, fromHex: fromHex,
     closeness: closeness, rgbFromOutputValue: rgbFromOutputValue,
     openRoundFor: openRoundFor, dayKey: dayKey, weekKey: weekKey,
-    withTimeout: withTimeout, shouldPoll: shouldPoll, roundForSubmit: roundForSubmit
+    clock: clock, withTimeout: withTimeout, shouldPoll: shouldPoll, roundForSubmit: roundForSubmit
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.QTCore = api;

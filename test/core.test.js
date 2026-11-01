@@ -86,3 +86,11 @@ test('roundForSubmit prefers the server hint while it is still open', () => {
   // stale hint (already locked) is ignored
   assert.equal(C.roundForSubmit(close + 295000, close + 300000), close + 600000);
 });
+
+test('clock shows 12-hour time with AM/PM', () => {
+  const at = (h, m) => new Date(2026, 0, 1, h, m).getTime();
+  assert.equal(C.clock(at(0, 5)), '12:05 AM');
+  assert.equal(C.clock(at(9, 30)), '9:30 AM');
+  assert.equal(C.clock(at(12, 0)), '12:00 PM');
+  assert.equal(C.clock(at(23, 55)), '11:55 PM');
+});

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!-- KaiStore marketing banner source. Screenshot at 240x130 as JPG: no text, calm on the left
+     where the store draws the icon, name and subtitle. -->
+<html><head><meta charset="utf-8"><style>
+html, body { margin: 0; width: 240px; height: 130px; overflow: hidden; }
+body { background: radial-gradient(circle at 78% 50%, #3b3e86 0%, #2b2d5c 45%, #17183a 100%); position: relative; }
+.ring { position: absolute; left: 186px; top: 65px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.10); transform: translate(-50%, -50%); }
+.grid { position: absolute; left: 150px; top: 29px; width: 72px; height: 72px; display: flex; flex-wrap: wrap; transform: rotate(-12deg); }
+.grid i { width: 20px; height: 20px; margin: 2px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,.25); }
+.dot { position: absolute; width: 9px; height: 9px; border-radius: 3px; opacity: .45; }
+.fade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(23,24,58,.55) 0%, rgba(23,24,58,0) 55%); }
+</style></head><body>
+<div class="ring" style="width:96px;height:96px"></div>
+<div class="ring" style="width:150px;height:150px;border-color:rgba(255,255,255,.07)"></div>
+<div class="ring" style="width:210px;height:210px;border-color:rgba(255,255,255,.045)"></div>
+<div class="ring" style="width:280px;height:280px;border-color:rgba(255,255,255,.03)"></div>
+<div class="grid" id="g"></div>
+<div class="dot" style="left:120px;top:18px;background:#f5a524;transform:rotate(20deg)"></div>
+<div class="dot" style="left:132px;top:100px;background:#33b5ff"></div>
+<div class="dot" style="left:228px;top:10px;background:#3fcf5a;transform:rotate(-15deg)"></div>
+<div class="dot" style="left:104px;top:72px;background:#e8449a;opacity:.3"></div>
+<div class="fade"></div>
+<script src="../app/js/core.js"></script>
+<script>
+QTCore.BASE.forEach(function (c) {
+  var i = document.createElement('i');
+  i.style.background = 'rgb(' + c.join(',') + ')';
+  document.getElementById('g').appendChild(i);
+});
+</script>
+</body></html>

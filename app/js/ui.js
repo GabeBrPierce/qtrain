@@ -18,7 +18,7 @@
   // ---------- helpers ----------
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
   function css(rgb) { return 'rgb(' + rgb.join(',') + ')'; }
-  function clock(ms) { var d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  var clock = Core.clock;
   function players(n) { return n + (n === 1 ? ' player' : ' players'); }
   function pad(n) { return n < 10 ? '0' + n : String(n); }
   function mmss(ms) { var s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + pad(s % 60); }
