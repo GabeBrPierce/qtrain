@@ -1,7 +1,7 @@
 {
   "id": "qtrain",
-  "name": "QTrain",
-  "short_name": "QTrain",
+  "name": "Hue Hunch",
+  "short_name": "Hue Hunch",
   "description": "Guess the color the NIST randomness beacon draws every 5 minutes. Closest pick tops the boards.",
   "start_url": "/qtrain/index.html",
   "scope": "/qtrain/",
@@ -16,11 +16,11 @@
   "version": "1.0.0",
   "type": "web",
   "subtitle": "Sense the beacon's next color",
-  "developer": { "name": "QTrain", "url": "https://gabebrpierce.github.io/qtrain/" },
+  "developer": { "name": "Hue Hunch", "url": "https://gabebrpierce.github.io/qtrain/" },
   "default_locale": "en-US",
   "locales": {
     "en-US": {
-      "name": "QTrain",
+      "name": "Hue Hunch",
       "subtitle": "Sense the beacon's next color",
       "description": "Guess the color the NIST randomness beacon draws every 5 minutes. Closest pick tops the boards."
     }
@@ -28,7 +28,7 @@
   "b2g_features": {
     "version": "3.0.0",
     "subtitle": "Sense the beacon's next color",
-    "developer": { "name": "QTrain", "url": "https://gabebrpierce.github.io/qtrain/" },
+    "developer": { "name": "Hue Hunch", "url": "https://gabebrpierce.github.io/qtrain/" },
     "categories": ["games"],
     "permissions": {
       "mobiledata": {},

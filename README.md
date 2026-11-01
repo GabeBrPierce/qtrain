@@ -1,4 +1,4 @@
-# QTrain
+# Hue Hunch
 
 A KaiOS game: guess the color the NIST Randomness Beacon draws every 5 minutes. Closest pick wins the Round, Day, Week and All-time boards. Practice rounds draw instantly from lizaonair.com/qrng.
 
@@ -41,4 +41,4 @@ Put the Worker URL in `app/js/config.js` (`apiBase`). Pushing `app/` to `main` d
 - Ads: KaiAds publisher `0b1f52de-82bb-4c58-b2e4-1b125c046417`, slot `qtrain-us` (set in `app/js/config.js`). Ads show on app open and after every 3rd result.
 - Listing limits: subtitle 40 chars, description 220 chars, icons 56 and 112 px (`node tools/make-icons.js` regenerates them).
 - Describe it as a game of luck and intuition.
-- Store art lives in `store/`: the 240x130 marketing banner (`img_qtrain.jpg`, made from `banner.html`) and five 240x320 screenshots (`screenshots/`, made by `shots.js` with the backend mocked). Theme color `#2B2D5C`.
+- Store art lives in `store/`: the 240x130 marketing banner (`img_hue_hunch.jpg`, made from `banner.html`) and five 240x320 screenshots (`screenshots/`, made by `shots.js` with the backend mocked). Theme color `#2B2D5C`.

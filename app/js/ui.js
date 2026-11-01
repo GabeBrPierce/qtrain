@@ -161,7 +161,7 @@
   var homeSel = 0, adShownOnOpen = false;
   screens.home = {
     enter: function () {
-      header('QTrain', player.nickname());
+      header('Hue Hunch', player.nickname());
       this.render();
       soft('', 'Select', '');
       if (!adShownOnOpen) { adShownOnOpen = true; Ads.show(); }
@@ -373,7 +373,7 @@
     key: function (k) {
       var r = lastResult;
       if (k === 'SoftLeft' && r.status === 'resolved' && r.me) {
-        share('I hit ' + r.me.closeness + '% on QTrain round ' + clock(r.roundId) + ' (#' + r.me.rank + ' of ' + r.players + '). Beacon ' + r.hex + ', me ' + r.me.hex);
+        share('I hit ' + r.me.closeness + '% on Hue Hunch round ' + clock(r.roundId) + ' (#' + r.me.rank + ' of ' + r.players + '). Beacon ' + r.hex + ', me ' + r.me.hex);
         return true;
       }
       if (k === 'SoftRight') { Sfx.play('select'); go('pick', 'competitive'); return true; }
@@ -399,7 +399,7 @@
     },
     key: function (k) {
       var r = lastPractice;
-      if (k === 'SoftLeft') { share('I hit ' + r.closeness + '% in QTrain practice. Drawn ' + Core.toHex(r.drawn) + ', me ' + Core.toHex(r.mine)); return true; }
+      if (k === 'SoftLeft') { share('I hit ' + r.closeness + '% in Hue Hunch practice. Drawn ' + Core.toHex(r.drawn) + ', me ' + Core.toHex(r.mine)); return true; }
       if (k === 'SoftRight' || k === 'Enter') { Sfx.play('select'); go('pick', 'practice'); return true; }
       if (k === 'Backspace') { Sfx.play('back'); go('home'); return true; }
       return false;
@@ -471,7 +471,7 @@
         '<p>Before the round closes, sense that color: press 1-9 for a base color, then keep refining. Red, green, blue and brightness nudges get finer the deeper you go. Submit locks it in.</p>' +
         '<p>Closeness is how near your color is to the beacon\'s: 100% is exact. Boards rank the closest picks.</p>' +
         '<p>Practice rounds draw instantly from a quantum-seeded generator and are not ranked.</p>' +
-        '<p>QTrain is a game of luck and intuition. Any pulse can be checked at beacon.nist.gov.</p>' +
+        '<p>Hue Hunch is a game of luck and intuition. Any pulse can be checked at beacon.nist.gov.</p>' +
         '<p>Turn sound on or off from the Home menu.</p>' +
         '</div>');
       soft('', '', player.needsIntro(VERSION) ? (player.nickname() ? 'Start' : 'Next') : 'Back');

@@ -1,5 +1,5 @@
 {
-  "name": "QTrain",
+  "name": "Hue Hunch",
   "version": "1.0.0",
   "subtitle": "Sense the beacon's next color",
   "description": "Guess the color the NIST randomness beacon draws every 5 minutes. Closest pick tops the boards.",
@@ -10,12 +10,12 @@
     "112": "https://raw.githubusercontent.com/GabeBrPierce/qtrain/main/app/icons/112.png"
   },
   "developer": {
-    "name": "QTrain",
+    "name": "Hue Hunch",
     "url": "https://gabebrpierce.github.io/qtrain/"
   },
   "locales": {
     "en-US": {
-      "name": "QTrain",
+      "name": "Hue Hunch",
       "subtitle": "Sense the beacon's next color",
       "description": "Guess the color the NIST randomness beacon draws every 5 minutes. Closest pick tops the boards."
     }
