@@ -159,7 +159,7 @@
   };
 
   // ---------- Home ----------
-  var HOME = ['competitive', 'practice', 'boards', 'nick', 'sound', 'about'];
+  var HOME = ['competitive', 'practice', 'boards', 'stats', 'nick', 'sound', 'about'];
   var homeSel = 0, adShownOnOpen = false;
   screens.home = {
     enter: function () {
@@ -177,6 +177,7 @@
         'Competitive<small>' + compLabel + ' &middot; ' + mmss(open - Core.LOCK_MS - Api.now()) + '</small>',
         'Practice<small>Instant rounds' + (player.practiceBest() != null ? ' &middot; best ' + player.practiceBest() + '%' : '') + '</small>',
         'Boards<small>Round, day, week, all time</small>',
+        'Stats<small>Are picks closer than chance?</small>',
         'Nickname<small>' + esc(player.nickname() || '') + ' &middot; streak ' + player.streak() + 'd</small>',
         'Sound<small>' + (player.sound() ? 'On' : 'Off') + '</small>',
         'How it works'
@@ -203,6 +204,7 @@
     if (item === 'competitive') {
       if (player.openPending(Api.now())) go('locked'); else go('pick', 'competitive');
     } else if (item === 'practice') go('pick', 'practice');
+    else if (item === 'stats') go('stats', { roundId: null, back: 'home' });
     else go(item);
   }
 
@@ -316,13 +318,14 @@
   var lastResult = null;
   screens.result = {
     enter: function (r) {
+      var again = r === lastResult; // back from Stats: no second ad tick
       lastResult = r;
       header('Round ' + clock(r.roundId), players(r.players));
       if (r.status === 'void') {
         content('<div class="big"><div class="score">Void</div><div class="note" style="text-align:center">The beacon was offline, so this round does not count.</div></div>');
         soft('', '', 'Next');
         Sfx.play('error');
-        afterResult();
+        if (!again) afterResult();
         return;
       }
       var me = r.me || {};
@@ -332,16 +335,17 @@
         '<div class="sub">#' + (me.rank || '-') + ' of ' + r.players + ' &middot; ' + esc(r.hex) + '</div>' +
         '<div class="sub" id="best-today">&nbsp;</div>' +
         '<div class="note" style="text-align:center">Pulse #' + r.pulseIndex + ' at beacon.nist.gov</div>');
-      soft('Share', '', 'Next');
+      soft('Share', 'Stats', 'Next');
       if (me.closeness != null) reveal(me.closeness, [me.hex, r.hex, '#fff']);
       Api.board('day', player.id()).then(function (b) {
         var el = $('best-today');
         if (el && b.status === 200 && b.body.me) el.textContent = 'Best today ' + b.body.me.closeness + '% (#' + b.body.me.rank + ') · streak ' + player.streak() + 'd';
       });
-      afterResult();
+      if (!again) afterResult();
     },
     key: function (k) {
       var r = lastResult;
+      if (k === 'Enter' && r.status === 'resolved') { Sfx.play('select'); go('stats', { roundId: r.roundId, back: 'result', backArg: r }); return true; }
       if (k === 'SoftLeft' && r.status === 'resolved' && r.me) {
         share('I hit ' + r.me.closeness + '% on ' + Game.name + ' round ' + clock(r.roundId) + ' (#' + r.me.rank + ' of ' + r.players + '). Beacon ' + r.hex + ', me ' + r.me.hex);
         return true;
