@@ -3,6 +3,7 @@ import player from '../../app/js/player.js';
 import beacon from './beacon.js';
 import rank from './rank.js';
 import db from './db.js';
+import scoring from './scoring.js';
 
 const QRNG = 'https://lizaonair.com/qrng/';
 const CORS = {
@@ -95,7 +96,9 @@ export async function resolveDue(env, now) {
       if (choice.status !== 'ok') continue;
       const rgb = core.rgbFromOutputValue(choice.pulse.outputValue);
       const ranked = rank.rankPicks(await db.roundPicks(env.DB, id), rgb);
-      await db.resolveRound(env.DB, id, choice.pulse.pulseIndex, core.toHex(rgb), ranked, Date.now());
+      // The Stats control: a color from an ordinary PRNG, drawn as the round is decided.
+      const prng = [0, 0, 0].map(() => Math.floor(Math.random() * 256));
+      await db.resolveRound(env.DB, id, choice.pulse.pulseIndex, core.toHex(rgb), ranked, Date.now(), core.toHex(prng));
     } catch (e) {
       console.error('resolve failed for round', id, e);
     }
@@ -122,6 +125,6 @@ export default {
     }
   },
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(resolveDue(env, Date.now()));
+    ctx.waitUntil(resolveDue(env, Date.now()).then(() => scoring.scoreDue(env.DB)).catch(e => console.error('stats failed', e)));
   },
 };

@@ -28,7 +28,8 @@ Desktop keys: 1-9 pick, Backspace undo/back, Q = left softkey, E = right softkey
 
 ```bash
 cd worker
-npx wrangler d1 execute qtrain --remote --file schema.sql
+npx wrangler d1 execute qtrain --remote --file schema.sql                  # new database only
+npx wrangler d1 execute qtrain --remote --file migrations/0001-stats.sql   # once, on a database made before Stats
 npx wrangler deploy
 bash ../test/api.smoke.sh https://qtrain.<subdomain>.workers.dev
 ```
