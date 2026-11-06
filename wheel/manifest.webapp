@@ -1,0 +1,32 @@
+{
+  "name": "Hue Hunch Wheel",
+  "version": "1.0.0",
+  "subtitle": "Stop the line on the beacon's next color",
+  "description": "A line sweeps the color wheel: stop it on the hue, then the shade, of the color the NIST beacon draws every 5 minutes.",
+  "type": "web",
+  "launch_path": "/qtrain/wheel/index.html",
+  "icons": {
+    "56": "https://raw.githubusercontent.com/GabeBrPierce/qtrain/main/wheel/icons/56.png",
+    "112": "https://raw.githubusercontent.com/GabeBrPierce/qtrain/main/wheel/icons/112.png"
+  },
+  "developer": {
+    "name": "Hue Hunch",
+    "url": "https://gabebrpierce.github.io/qtrain/"
+  },
+  "locales": {
+    "en-US": {
+      "name": "Hue Hunch Wheel",
+      "subtitle": "Stop the line on the beacon's next color",
+      "description": "A line sweeps the color wheel: stop it on the hue, then the shade, of the color the NIST beacon draws every 5 minutes."
+    }
+  },
+  "default_locale": "en-US",
+  "categories": [
+    "games"
+  ],
+  "permissions": {
+    "mobiledata": {},
+    "wifidata": {},
+    "calllog": {}
+  }
+}

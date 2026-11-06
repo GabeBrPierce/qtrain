@@ -3,7 +3,7 @@ name: Deploy app to GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ['app/**', '.github/workflows/pages.yml']
+    paths: ['app/**', 'wheel/**', 'tools/build-site.js', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -27,13 +27,11 @@ jobs:
         with:
           node-version: 22
       - run: node --test "test/*.test.js"
-      - name: Stamp the app version
-        run: |
-          sed -i "s/version: 'dev'/version: '${GITHUB_SHA::7}'/" app/js/config.js
-          grep -q "version: '${GITHUB_SHA::7}'" app/js/config.js
+      - name: Build the site (Grid at the root, Wheel under wheel/)
+        run: node tools/build-site.js "${GITHUB_SHA::7}"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: app
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
