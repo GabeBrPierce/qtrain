@@ -1,11 +1,12 @@
-// Screens and key handling. Each screen is { enter(arg), key(k) -> handled?, tick() }.
+// Screens and key handling shared by both apps, exported as QTUI. Each screen is
+// { enter(arg), key(k) -> handled?, tick(), leave() }. QTGame names the app; the pick screen comes from
+// screen-grid.js or screen-wheel.js, and main.js calls QTUI.start() once every screen is registered.
 (function (root) {
   'use strict';
-  var Core = root.QTCore, Api = root.QTApi, Ads = root.QTAds, Sfx = root.QTSfx;
+  var Core = root.QTCore, Api = root.QTApi, Ads = root.QTAds, Sfx = root.QTSfx, Game = root.QTGame;
   var VERSION = root.QTConfig.version;
-  var player = root.QTPlayer.create();
+  var player = root.QTPlayer.create(undefined, Game.storageKey);
   Sfx.setEnabled(player.sound());
-  var picker = root.QTPicker.create();
   var $ = function (id) { return document.getElementById(id); };
 
   var screens = {};
@@ -112,6 +113,7 @@
     var c = $('content');
     c.scrollTop = 0;
     replay(c, 'enter');
+    if (current && current.leave) current.leave();
     currentName = name;
     current = screens[name];
     current.enter(arg);
@@ -161,7 +163,7 @@
   var homeSel = 0, adShownOnOpen = false;
   screens.home = {
     enter: function () {
-      header('Hue Hunch', player.nickname());
+      header(Game.name, player.nickname());
       this.render();
       soft('', 'Select', '');
       if (!adShownOnOpen) { adShownOnOpen = true; Ads.show(); }
@@ -204,60 +206,28 @@
     else go(item);
   }
 
-  // ---------- Pick ----------
-  var BASE_LBL = Core.BASE_NAMES;
-  var NUDGE_LBL = ['R-', 'lighter', 'R+', 'G-', 'yours', 'G+', 'B-', 'darker', 'B+'];
-  var pickMode = 'practice', busy = false;
-  screens.pick = {
-    enter: function (mode) {
-      pickMode = mode || pickMode;
-      picker.reset();
-      busy = false;
-      this.render();
-    },
-    // anim: 'zin' after drilling in, 'zout' after undo.
-    render: function (anim) {
-      var cur = picker.current();
-      this.tick();
-      content('<div class="depth">' + (cur ? Core.toHex(cur) + ' &middot; step ' + picker.step() : 'Press 1-9 to pick a color') + '</div>' +
-        '<div class="grid ' + (anim || '') + '">' + picker.options().map(function (c, i) {
-          return '<div class="cell' + (cur && i === 4 ? ' center' : '') + '" data-key="' + (i + 1) + '" style="background:' + css(c) + '">' +
-            (i + 1) + '<small>' + (cur ? NUDGE_LBL[i] : BASE_LBL[i]) + '</small></div>';
-        }).join('') + '</div>');
-      soft('Undo', '', busy ? '...' : 'Submit', !picker.canUndo(), !cur || busy);
-    },
-    tick: function () {
-      if (pickMode === 'practice') { header('Practice', 'best ' + (player.practiceBest() != null ? player.practiceBest() + '%' : '-')); return; }
-      var open = Core.openRoundFor(Api.now());
-      header('Round ' + clock(open), mmss(open - Core.LOCK_MS - Api.now()) + ' left');
-    },
-    key: function (k) {
-      if (busy) return true;
-      if (/^[1-9]$/.test(k)) { if (picker.press(+k)) { Sfx.play('key', +k); this.render('zin'); } return true; }
-      if (k === 'SoftLeft' || (k === 'Backspace' && picker.canUndo())) { if (picker.undo()) { Sfx.play('undo'); this.render('zout'); } return true; }
-      if (k === 'Backspace') { Sfx.play('back'); go('home'); return true; }
-      if (k === 'SoftRight' && picker.current()) { Sfx.play('submit'); submit(); return true; }
-      return k === 'SoftRight';
-    }
-  };
+  // ---------- Pick (screens live in screen-grid.js / screen-wheel.js) ----------
+  // Header for a pick screen: practice best, or the open round and its time left.
+  function pickHeader(mode) {
+    if (mode === 'practice') { header('Practice', 'best ' + (player.practiceBest() != null ? player.practiceBest() + '%' : '-')); return; }
+    var open = Core.openRoundFor(Api.now());
+    header('Round ' + clock(open), mmss(open - Core.LOCK_MS - Api.now()) + ' left');
+  }
 
-  function submit() {
-    var hex = Core.toHex(picker.current());
-    busy = true;
-    screens.pick.render();
-    if (pickMode === 'practice') {
+  // Sends a finished pick. On success it moves on to a result or Locked in; onFail lets the pick screen redraw.
+  function submit(rgb, mode, onFail) {
+    var hex = Core.toHex(rgb);
+    if (mode === 'practice') {
       Api.practice().then(function (r) {
-        busy = false;
-        if (r.status !== 200) { screens.pick.render(); Sfx.play('error'); toast('Could not reach the random source. Try again.'); return; }
-        var c = Core.closeness(picker.current(), r.body.rgb);
+        if (r.status !== 200) { onFail(); Sfx.play('error'); toast('Could not reach the random source. Try again.'); return; }
+        var c = Core.closeness(rgb, r.body.rgb);
         player.recordPractice(c);
-        go('practiceResult', { mine: picker.current(), drawn: r.body.rgb, closeness: c });
+        go('practiceResult', { mine: rgb, drawn: r.body.rgb, closeness: c });
       });
       return;
     }
     var roundId = Core.roundForSubmit(Api.now(), roundHint);
     Api.pick({ playerId: player.id(), nickname: player.nickname(), roundId: roundId, hex: hex }).then(function (r) {
-      busy = false;
       if (r.status === 200) {
         roundHint = null;
         player.addPending({ roundId: roundId, hex: hex });
@@ -268,7 +238,7 @@
       } else if (r.status === 409 && r.body.error === 'round_closed') {
         roundHint = r.body.openRoundId;
         Api.syncClock();
-        screens.pick.render();
+        onFail();
         Sfx.play('error');
         toast('That round just closed. Submit again for ' + clock(r.body.openRoundId) + '.');
       } else if (r.status === 409 && r.body.error === 'already_picked') {
@@ -276,7 +246,7 @@
         lastRoundId = roundId;
         go('locked');
       } else {
-        screens.pick.render();
+        onFail();
         Sfx.play('error');
         toast(r.status === 0 ? 'No connection. Try again.' : 'Something went wrong. Try again.');
       }
@@ -373,7 +343,7 @@
     key: function (k) {
       var r = lastResult;
       if (k === 'SoftLeft' && r.status === 'resolved' && r.me) {
-        share('I hit ' + r.me.closeness + '% on Hue Hunch round ' + clock(r.roundId) + ' (#' + r.me.rank + ' of ' + r.players + '). Beacon ' + r.hex + ', me ' + r.me.hex);
+        share('I hit ' + r.me.closeness + '% on ' + Game.name + ' round ' + clock(r.roundId) + ' (#' + r.me.rank + ' of ' + r.players + '). Beacon ' + r.hex + ', me ' + r.me.hex);
         return true;
       }
       if (k === 'SoftRight') { Sfx.play('select'); go('pick', 'competitive'); return true; }
@@ -399,7 +369,7 @@
     },
     key: function (k) {
       var r = lastPractice;
-      if (k === 'SoftLeft') { share('I hit ' + r.closeness + '% in Hue Hunch practice. Drawn ' + Core.toHex(r.drawn) + ', me ' + Core.toHex(r.mine)); return true; }
+      if (k === 'SoftLeft') { share('I hit ' + r.closeness + '% in ' + Game.name + ' practice. Drawn ' + Core.toHex(r.drawn) + ', me ' + Core.toHex(r.mine)); return true; }
       if (k === 'SoftRight' || k === 'Enter') { Sfx.play('select'); go('pick', 'practice'); return true; }
       if (k === 'Backspace') { Sfx.play('back'); go('home'); return true; }
       return false;
@@ -468,10 +438,10 @@
         return '<i style="background:' + css(c) + ';animation-delay:' + i * 120 + 'ms"></i>';
       }).join('') + '</div>' +
         '<p>Every 5 minutes the NIST Randomness Beacon publishes a random number. Its first three bytes become a color.</p>' +
-        '<p>Before the round closes, sense that color: press 1-9 for a base color, then keep refining. Red, green, blue and brightness nudges get finer the deeper you go. Submit locks it in.</p>' +
+        '<p>' + Game.intro + '</p>' +
         '<p>Closeness is how near your color is to the beacon\'s: 100% is exact. Boards rank the closest picks.</p>' +
         '<p>Practice rounds draw instantly from a quantum-seeded generator and are not ranked.</p>' +
-        '<p>Hue Hunch is a game of luck and intuition. Any pulse can be checked at beacon.nist.gov.</p>' +
+        '<p>' + Game.name + ' is a game of luck and intuition. Any pulse can be checked at beacon.nist.gov.</p>' +
         '<p>Turn sound on or off from the Home menu.</p>' +
         '</div>');
       soft('', '', player.needsIntro(VERSION) ? (player.nickname() ? 'Start' : 'Next') : 'Back');
@@ -515,14 +485,25 @@
   $('sk-center').addEventListener('click', function () { current.key('Enter'); });
   $('sk-right').addEventListener('click', function () { current.key('SoftRight'); });
 
-  setInterval(function () {
-    if (current && current.tick) current.tick();
-    pollPending();
-  }, 1000);
-  setInterval(function () { Api.syncClock(); }, 300000);
+  function start() {
+    setInterval(function () {
+      if (current && current.tick) current.tick();
+      pollPending();
+    }, 1000);
+    setInterval(function () { Api.syncClock(); }, 300000);
 
-  var first = player.pendings()[0];
-  if (first) lastRoundId = first.roundId;
-  go(player.needsIntro(VERSION) ? 'about' : player.nickname() ? 'home' : 'nick');
-  Api.syncClock();
+    var first = player.pendings()[0];
+    if (first) lastRoundId = first.roundId;
+    go(player.needsIntro(VERSION) ? 'about' : player.nickname() ? 'home' : 'nick');
+    Api.syncClock();
+  }
+
+  root.QTUI = {
+    screens: screens, go: go, header: header, soft: soft, content: content, toast: toast, replay: replay,
+    esc: esc, css: css, clock: clock, mmss: mmss, players: players, pickHeader: pickHeader, submit: submit,
+    player: player, start: start,
+    current: function () { return currentName; },
+    lastResult: function () { return lastResult; },
+    lockedPick: lockedPick
+  };
 })(this);
