@@ -66,3 +66,58 @@ test('rankPicks orders by closeness then earlier submit', () => {
   assert.deepEqual(ranked.map(r => r.rank), [1, 2, 3]);
   assert.equal(ranked[0].closeness, 100);
 });
+
+const { createD1 } = require('./d1-fake.js');
+const DB = require('../worker/src/db.js');
+const routes = require('../worker/src/routes.js');
+const RID = Date.UTC(2026, 9, 30, 14, 35);
+const save = (d, id, hex, at) => DB.savePick(d, { playerId: id, nickname: id.toUpperCase(), roundId: RID, hex, submittedAt: at, dayKey: '2026-10-30', weekKey: '2026-W44' });
+
+test('live picks are refused before you pick', async () => {
+  const d = createD1();
+  await save(d, 'alpha-1234', '#112233', 1);
+  const r = await routes.handleLivePicks({ DB: d }, RID, 'beta-5678');
+  assert.equal(r.status, 403);
+  assert.equal(r.body.picks, undefined);
+  assert.equal((await routes.handleLivePicks({ DB: d }, RID, null)).status, 403);
+});
+
+test('live picks list everyone once you pick, with your own marked', async () => {
+  const d = createD1();
+  await save(d, 'alpha-1234', '#112233', 2);
+  await save(d, 'beta-5678', '#445566', 1);
+  const r = await routes.handleLivePicks({ DB: d }, RID, 'alpha-1234');
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.picks.map(p => [p.nickname, p.tag, p.hex, p.mine]), [['BETA-5678', 'beta', '#445566', false], ['ALPHA-1234', 'alph', '#112233', true]]);
+  assert.ok(!JSON.stringify(r.body).includes('"beta-5678"') && !JSON.stringify(r.body).includes('"alpha-1234"'), 'no full player ids');
+});
+
+test('round stats are pending until scored, then carry the band', async () => {
+  const d = createD1();
+  assert.equal((await routes.handleStats({ DB: d }, ['stats', 'round', String(RID)])).body.status, 'none');
+  await save(d, 'alpha-1234', '#112233', 1);
+  assert.equal((await routes.handleStats({ DB: d }, ['stats', 'round', String(RID)])).body.status, 'pending');
+  await DB.resolveRound(d, RID, 9, '#112233', [], RID + 90000, '#FFFFFF');
+  await DB.saveStats(d, RID, { n: 1, qMean: 0.9, pMean: 0.2, nullVar: 1 / 12, q: [0.9], p: [0.2] }, await DB.roundPicks(d, RID));
+  const b = (await routes.handleStats({ DB: d }, ['stats', 'round', String(RID)])).body;
+  assert.deepEqual([b.status, b.n, b.quantum, b.algorithm], ['ready', 1, 90, 20]);
+  assert.ok(b.band[0] < 50 && b.band[1] > 50);
+});
+
+test('all stats are empty-safe', async () => {
+  const r = await routes.handleStats({ DB: createD1() }, ['stats', 'all']);
+  assert.equal(r.status, 200);
+  assert.deepEqual([r.body.rounds, r.body.quantum, r.body.series.length], [0, null, 0]);
+});
+
+test('unknown stats paths are not found', async () => {
+  assert.equal((await routes.handleStats({ DB: createD1() }, ['stats', 'week'])).status, 404);
+});
+
+test('a round being scored reads as pending, not as ready', async () => {
+  const d = createD1();
+  await save(d, 'alpha-1234', '#112233', 1);
+  await DB.resolveRound(d, RID, 9, '#112233', [], RID + 90000, '#FFFFFF');
+  await DB.claimStats(d, RID);
+  assert.equal((await routes.handleStats({ DB: d }, ['stats', 'round', String(RID)])).body.status, 'pending');
+});

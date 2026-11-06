@@ -1,0 +1,7 @@
+/* Wheel app: the pick wheel, the live wheel and the result wheel. */
+.wheel { display: flex; flex-direction: column; align-items: center; padding-top: 4px; }
+.wheel canvas { display: block; cursor: pointer; }
+.wheel .hint { font-size: 12px; color: #c9cbff; height: 18px; line-height: 18px; }
+.wheel .hex { font-size: 11px; color: #aaa; height: 16px; line-height: 16px; }
+.big canvas { display: block; }
+.big .timer { margin-top: 0; font-size: 28px; }

@@ -31,6 +31,10 @@
     pick: function (body) { return request('POST', '/pick', body); },
     round: function (id, playerId) { return request('GET', '/round/' + id + q(playerId)); },
     board: function (period, playerId) { return request('GET', '/board/' + period + q(playerId)); },
-    practice: function () { return request('GET', '/practice'); }
+    practice: function () { return request('GET', '/practice'); },
+    roundStats: function (id) { return request('GET', '/stats/round/' + id); },
+    allStats: function () { return request('GET', '/stats/all'); },
+    // Everyone's picks so far; the server answers 403 until this player has picked in the round.
+    livePicks: function (id, playerId) { return request('GET', '/round/' + id + '/picks' + q(playerId)); }
   };
 })(this);

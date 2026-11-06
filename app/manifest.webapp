@@ -1,5 +1,5 @@
 {
-  "name": "Hue Hunch",
+  "name": "Hue Hunch Grid",
   "version": "1.0.0",
   "subtitle": "Sense the beacon's next color",
   "description": "Guess the color the NIST randomness beacon draws every 5 minutes. Closest pick tops the boards.",
@@ -15,7 +15,7 @@
   },
   "locales": {
     "en-US": {
-      "name": "Hue Hunch",
+      "name": "Hue Hunch Grid",
       "subtitle": "Sense the beacon's next color",
       "description": "Guess the color the NIST randomness beacon draws every 5 minutes. Closest pick tops the boards."
     }

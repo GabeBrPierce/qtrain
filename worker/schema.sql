@@ -10,7 +10,12 @@ CREATE TABLE IF NOT EXISTS rounds (
   hex TEXT,
   day_key TEXT NOT NULL,
   week_key TEXT NOT NULL,
-  resolved_at INTEGER
+  resolved_at INTEGER,
+  prng_hex TEXT,
+  stats_n INTEGER,
+  q_mean REAL,
+  p_mean REAL,
+  null_var REAL
 );
 CREATE TABLE IF NOT EXISTS picks (
   round_id INTEGER NOT NULL,
@@ -19,6 +24,8 @@ CREATE TABLE IF NOT EXISTS picks (
   submitted_at INTEGER NOT NULL,
   closeness REAL,
   rank INTEGER,
+  chance_q REAL,
+  chance_p REAL,
   PRIMARY KEY (round_id, player_id)
 );
 CREATE INDEX IF NOT EXISTS rounds_day ON rounds(day_key);

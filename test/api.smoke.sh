@@ -28,6 +28,11 @@ check "practice gives 3 channels in range" "$(echo "$PR" | json '.rgb.filter(x=>
 
 check "day board has top array" "$(curl -s "$BASE/board/day?player=$PLAYER" | json '.top instanceof Array')" true
 check "unknown board period" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/board/month")" 404
+check "live picks refused before picking" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/round/$OPEN/picks?player=$PLAYER-9")" 403
+check "live picks after picking include mine" "$(curl -s "$BASE/round/$OPEN/picks?player=$PLAYER" | json '.picks.some(p=>p.mine)')" true
+check "round stats pending for an open round" "$(curl -s "$BASE/stats/round/$OPEN" | json .status)" pending
+check "all stats has a series array" "$(curl -s "$BASE/stats/all" | json '.series instanceof Array')" true
+
 check "CORS header" "$(curl -s -D - -o /dev/null "$BASE/now" | tr -d '\r' | grep -i '^access-control-allow-origin:' | awk '{print $2}')" '*'
 
 echo "pass $PASS fail $FAIL"

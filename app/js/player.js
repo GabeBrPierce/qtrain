@@ -36,12 +36,13 @@
     return Date.UTC(+p[0], +p[1] - 1, +p[2]) / 86400000;
   }
 
-  function create(storage) {
+  function create(storage, key) {
+    var k = key || KEY;
     if (storage === undefined) {
       try { storage = root.localStorage; } catch (e) { storage = null; }
     }
     var s = null;
-    try { s = JSON.parse(storage.getItem(KEY)); } catch (e) { s = null; }
+    try { s = JSON.parse(storage.getItem(k)); } catch (e) { s = null; }
     if (!s || typeof s !== 'object') s = {};
     if (!s.id) s.id = uuid();
     if (!s.history) s.history = [];
@@ -52,7 +53,7 @@
     save();
 
     function save() {
-      try { storage.setItem(KEY, JSON.stringify(s)); } catch (e) { /* memory only */ }
+      try { storage.setItem(k, JSON.stringify(s)); } catch (e) { /* memory only */ }
     }
 
     return {

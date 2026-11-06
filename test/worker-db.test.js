@@ -43,3 +43,100 @@ test('board keeps each player best resolved pick and skips void rounds', async (
   const rows = await db.board(d, 'day_key', '2026-10-30', 'bravo', 10);
   assert.deepEqual(rows.map(r => [r.player_id, r.closeness, r.rank]), [['alpha', 80, 1], ['bravo', 70, 2]]);
 });
+
+const scoring = require('../worker/src/scoring.js');
+const stats = { n: 2, qMean: 0.6, pMean: 0.4, nullVar: 0.05, q: [0.7, 0.5], p: [0.3, 0.5] };
+
+test('resolveRound stores the PRNG color', async () => {
+  const d = createD1();
+  await db.savePick(d, pick('alpha', R, '#C8263F', 1));
+  await db.resolveRound(d, R, 9, '#C8263F', [{ playerId: 'alpha', closeness: 100, rank: 1 }], R + 90000, '#112233');
+  assert.equal((await db.getRound(d, R)).prng_hex, '#112233');
+});
+
+test('rounds needing stats are resolved and unscored', async () => {
+  const d = createD1();
+  const R2 = R + 300000, R3 = R + 600000;
+  await db.savePick(d, pick('alpha', R, '#C8263F', 1));
+  await db.savePick(d, pick('alpha', R2, '#C8263F', 2));
+  await db.savePick(d, pick('alpha', R3, '#C8263F', 3));
+  await db.resolveRound(d, R, 9, '#C8263F', [{ playerId: 'alpha', closeness: 100, rank: 1 }], R + 90000, '#112233');
+  await db.voidRound(d, R2, R2 + 400000);
+  assert.deepEqual(await db.roundsNeedingStats(d, 10), [R]);
+  await db.saveStats(d, R, Object.assign({}, stats, { n: 1, q: [0.7], p: [0.3] }), await db.roundPicks(d, R));
+  assert.deepEqual(await db.roundsNeedingStats(d, 10), []);
+});
+
+test('saveStats stores per-pick chance scores', async () => {
+  const d = createD1();
+  await db.savePick(d, pick('alpha', R, '#C8263F', 1));
+  await db.savePick(d, pick('beta', R, '#00FF00', 2));
+  await db.resolveRound(d, R, 9, '#C8263F', [], R + 90000, '#112233');
+  const picks = await db.roundPicks(d, R);
+  await db.saveStats(d, R, stats, picks);
+  const row = d.raw.prepare('SELECT chance_q, chance_p FROM picks WHERE round_id = ? AND player_id = ?').get(R, picks[0].playerId);
+  assert.deepEqual([row.chance_q, row.chance_p], [0.7, 0.3]);
+});
+
+test('statsRows skips unscored and empty rounds and keeps null pMean', async () => {
+  const d = createD1();
+  const R2 = R + 300000, R3 = R + 600000;
+  for (const r of [R, R2, R3]) {
+    await db.savePick(d, pick('alpha', r, '#C8263F', r));
+    await db.resolveRound(d, r, 9, '#C8263F', [], r + 90000, null);
+  }
+  await db.saveStats(d, R, { n: 1, qMean: 0.6, pMean: null, nullVar: 0.08, q: [0.6], p: null }, await db.roundPicks(d, R));
+  await db.saveStats(d, R3, { n: 0, qMean: null, pMean: null, nullVar: 0, q: [], p: null }, []);
+  assert.deepEqual((await db.statsRows(d)).map(r => ({ ...r })), [{ roundId: R, n: 1, qMean: 0.6, pMean: null, nullVar: 0.08 }]);
+  assert.equal((await db.roundStatsRow(d, R)).status, 'resolved');
+  assert.equal(await db.roundStatsRow(d, 1), null);
+});
+
+test('scoreDue backfills an old round without a PRNG color', async () => {
+  const d = createD1();
+  await db.savePick(d, pick('alpha', R, '#C8263F', 1));
+  await db.resolveRound(d, R, 9, '#C02040', [], R + 90000);
+  assert.equal(await scoring.scoreDue(d), 1);
+  const row = await db.roundStatsRow(d, R);
+  assert.ok(row.qMean > 0.9);
+  assert.equal(row.pMean, null);
+  assert.equal(row.n, 1);
+});
+
+test('saveStats writes a fixed number of statements however many picks', async () => {
+  const d = createD1();
+  for (let i = 0; i < 60; i++) await db.savePick(d, pick('player-' + i, R, '#C8263F', i));
+  await db.resolveRound(d, R, 9, '#C8263F', [], R + 90000, '#112233');
+  const picks = await db.roundPicks(d, R);
+  const batch = d.batch;
+  let sizes = [];
+  d.batch = stmts => { sizes.push(stmts.length); return batch(stmts); };
+  await db.saveStats(d, R, { n: 60, qMean: 0.5, pMean: 0.5, nullVar: 0.01, q: picks.map((_, i) => i / 100), p: picks.map(() => 0.25) }, picks);
+  assert.deepEqual(sizes, [2]);
+  const row = d.raw.prepare('SELECT chance_q, chance_p FROM picks WHERE round_id = ? AND player_id = ?').get(R, picks[7].playerId);
+  assert.deepEqual([row.chance_q, row.chance_p], [0.07, 0.25]);
+});
+
+test('a claimed round is not handed out again, so a killed run cannot stall the rest', async () => {
+  const d = createD1();
+  const R2 = R + 300000;
+  for (const r of [R, R2]) {
+    await db.savePick(d, pick('alpha', r, '#C8263F', r));
+    await db.resolveRound(d, r, 9, '#C8263F', [], r + 90000, null);
+  }
+  assert.equal(await db.claimStats(d, R), true);
+  assert.equal(await db.claimStats(d, R), false);
+  assert.deepEqual(await db.roundsNeedingStats(d, 10), [R2]);
+  assert.deepEqual(await db.statsRows(d), []);
+});
+
+test('scoreDue leaves a round for the next run rather than go over its pick budget', async () => {
+  const d = createD1();
+  const R2 = R + 300000;
+  await db.savePick(d, pick('alpha', R, '#C8263F', 1));
+  for (let i = 0; i < 5; i++) await db.savePick(d, pick('p' + i, R2, '#00FF00', i));
+  for (const r of [R, R2]) await db.resolveRound(d, r, 9, '#C8263F', [], r + 90000, null);
+  assert.equal(await scoring.scoreDue(d, 10, 3), 1);
+  assert.deepEqual(await db.roundsNeedingStats(d, 10), [R2]);
+  assert.equal(await scoring.scoreDue(d, 10, 3), 1, 'a round bigger than the budget is still scored when it comes first');
+});

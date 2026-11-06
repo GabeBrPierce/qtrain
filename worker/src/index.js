@@ -3,6 +3,8 @@ import player from '../../app/js/player.js';
 import beacon from './beacon.js';
 import rank from './rank.js';
 import db from './db.js';
+import scoring from './scoring.js';
+import routes from './routes.js';
 
 const QRNG = 'https://lizaonair.com/qrng/';
 const CORS = {
@@ -95,7 +97,9 @@ export async function resolveDue(env, now) {
       if (choice.status !== 'ok') continue;
       const rgb = core.rgbFromOutputValue(choice.pulse.outputValue);
       const ranked = rank.rankPicks(await db.roundPicks(env.DB, id), rgb);
-      await db.resolveRound(env.DB, id, choice.pulse.pulseIndex, core.toHex(rgb), ranked, Date.now());
+      // The Stats control: a color from an ordinary PRNG, drawn as the round is decided.
+      const prng = [0, 0, 0].map(() => Math.floor(Math.random() * 256));
+      await db.resolveRound(env.DB, id, choice.pulse.pulseIndex, core.toHex(rgb), ranked, Date.now(), core.toHex(prng));
     } catch (e) {
       console.error('resolve failed for round', id, e);
     }
@@ -112,7 +116,15 @@ export default {
     try {
       if (req.method === 'GET' && url.pathname === '/now') return json({ now, openRoundId: core.openRoundFor(now) });
       if (req.method === 'POST' && url.pathname === '/pick') return await handlePick(req, env, now);
+      if (req.method === 'GET' && parts[0] === 'round' && /^\d+$/.test(parts[1] || '') && parts[2] === 'picks' && parts.length === 3) {
+        const r = await routes.handleLivePicks(env, Number(parts[1]), playerId);
+        return json(r.body, r.status);
+      }
       if (req.method === 'GET' && parts[0] === 'round' && /^\d+$/.test(parts[1] || '')) return await handleRound(env, Number(parts[1]), playerId, now);
+      if (req.method === 'GET' && parts[0] === 'stats') {
+        const r = await routes.handleStats(env, parts);
+        return json(r.body, r.status);
+      }
       if (req.method === 'GET' && parts[0] === 'board' && PERIODS.hasOwnProperty(parts[1])) return await handleBoard(env, parts[1], playerId, now);
       if (req.method === 'GET' && url.pathname === '/practice') return await handlePractice();
       return json({ error: 'not_found' }, 404);
@@ -122,6 +134,6 @@ export default {
     }
   },
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(resolveDue(env, Date.now()));
+    ctx.waitUntil(resolveDue(env, Date.now()).then(() => scoring.scoreDue(env.DB)).catch(e => console.error('stats failed', e)));
   },
 };

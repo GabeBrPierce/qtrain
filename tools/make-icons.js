@@ -1,10 +1,12 @@
-// Writes app/icons/{56,112}.png: the 9 base colors as a 3x3 grid on a rounded dark square with a soft
-// shadow, in the proportions of the KaiOS sample icons (square is 88/104 of the canvas, set high).
+// Writes app/icons/{56,112}.png (Grid: the 9 base colors as a 3x3 grid) and wheel/icons/{56,112}.png (Wheel: a
+// hue ring with a white line) on a rounded dark square with a soft shadow, in the proportions of the KaiOS
+// sample icons (square is 88/104 of the canvas, set high).
 // Run: node tools/make-icons.js
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const { BASE } = require('../app/js/core.js');
+const { hueRgb } = require('../app/js/wheel.js');
 
 const FILL = [27, 29, 63];
 
@@ -32,7 +34,7 @@ function sdRound(x, y, l, t, w, h, r) {
 }
 
 // Color and alpha at one sample point, before compositing over the shadow.
-function shade(x, y, size) {
+function shadeGrid(x, y, size) {
   const k = size / 104, side = 88 * k, left = 8 * k, top = 4 * k;
   if (sdRound(x, y, left, top, side, side, side * 0.23) > 0) return null;
   const pad = side * 0.13, gap = side * 0.045, tile = (side - 2 * pad - 2 * gap) / 3;
@@ -43,7 +45,22 @@ function shade(x, y, size) {
   return FILL;
 }
 
-function png(size) {
+// Wheel icon: hue ring, red at the top going clockwise, and a white line from the center to the ring.
+const LINE_ANGLE = 0.38; // laps from the top
+function shadeWheel(x, y, size) {
+  const k = size / 104, side = 88 * k, left = 8 * k, top = 4 * k;
+  if (sdRound(x, y, left, top, side, side, side * 0.23) > 0) return null;
+  const cx = left + side / 2, cy = top + side / 2, dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy);
+  const outer = side * 0.38, inner = side * 0.24;
+  const ax = Math.sin(LINE_ANGLE * 2 * Math.PI), ay = -Math.cos(LINE_ANGLE * 2 * Math.PI);
+  const along = dx * ax + dy * ay, across = Math.abs(dx * ay - dy * ax);
+  if (along > -side * 0.02 && along < outer + side * 0.03 && across < side * 0.028) return [255, 255, 255];
+  if (d <= side * 0.05) return [255, 255, 255];
+  if (d >= inner && d <= outer) return hueRgb(((Math.atan2(dx, -dy) / (2 * Math.PI)) + 1) % 1);
+  return FILL;
+}
+
+function png(size, shade) {
   const k = size / 104, side = 88 * k, N = 4;
   const rows = [];
   for (let y = 0; y < size; y++) {
@@ -76,7 +93,9 @@ function png(size) {
   ]);
 }
 
-const dir = path.join(__dirname, '..', 'app', 'icons');
-fs.mkdirSync(dir, { recursive: true });
-[56, 112].forEach(s => fs.writeFileSync(path.join(dir, s + '.png'), png(s)));
-console.log('wrote', dir);
+[['app', shadeGrid], ['wheel', shadeWheel]].forEach(([app, shade]) => {
+  const dir = path.join(__dirname, '..', app, 'icons');
+  fs.mkdirSync(dir, { recursive: true });
+  [56, 112].forEach(s => fs.writeFileSync(path.join(dir, s + '.png'), png(s, shade)));
+  console.log('wrote', dir);
+});

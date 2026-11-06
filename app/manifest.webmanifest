@@ -1,7 +1,7 @@
 {
   "id": "qtrain",
-  "name": "Hue Hunch",
-  "short_name": "Hue Hunch",
+  "name": "Hue Hunch Grid",
+  "short_name": "Hue Hunch Grid",
   "description": "Guess the color the NIST randomness beacon draws every 5 minutes. Closest pick tops the boards.",
   "start_url": "/qtrain/index.html",
   "scope": "/qtrain/",
@@ -20,7 +20,7 @@
   "default_locale": "en-US",
   "locales": {
     "en-US": {
-      "name": "Hue Hunch",
+      "name": "Hue Hunch Grid",
       "subtitle": "Sense the beacon's next color",
       "description": "Guess the color the NIST randomness beacon draws every 5 minutes. Closest pick tops the boards."
     }

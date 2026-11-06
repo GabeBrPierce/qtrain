@@ -114,3 +114,10 @@ test('works when storage throws', () => {
   assert.equal(p.streak(), 1);
   assert.deepEqual([p.adTick(), p.adTick(), p.adTick()], [false, false, true]);
 });
+
+test('create takes a storage key', () => {
+  const s = memStorage();
+  P.create(s, 'other.state').setNickname('zed');
+  assert.equal(P.create(s, 'other.state').nickname(), 'ZED');
+  assert.equal(P.create(s).nickname(), null);
+});

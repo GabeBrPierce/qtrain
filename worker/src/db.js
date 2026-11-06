@@ -43,9 +43,10 @@ function roundPicks(db, roundId) {
 
 // Only an 'open' round can change state, so overlapping cron runs cannot flip a decided round.
 // Picks are scored only when this batch is the one that resolved the round.
-function resolveRound(db, roundId, pulseIndex, hex, ranked, nowMs) {
-  const stmts = [db.prepare("UPDATE rounds SET status = 'resolved', pulse_index = ?1, hex = ?2, resolved_at = ?3 WHERE round_id = ?4 AND status = 'open'")
-    .bind(pulseIndex, hex, nowMs, roundId)];
+// prngHex is the control color drawn by an ordinary PRNG at the same moment, for the Stats screens.
+function resolveRound(db, roundId, pulseIndex, hex, ranked, nowMs, prngHex) {
+  const stmts = [db.prepare("UPDATE rounds SET status = 'resolved', pulse_index = ?1, hex = ?2, resolved_at = ?3, prng_hex = ?5 WHERE round_id = ?4 AND status = 'open'")
+    .bind(pulseIndex, hex, nowMs, roundId, prngHex || null)];
   ranked.forEach(p => stmts.push(
     db.prepare('UPDATE picks SET closeness = ?1, rank = ?2 WHERE round_id = ?3 AND player_id = ?4 AND ' +
       "(SELECT resolved_at FROM rounds WHERE round_id = ?3 AND status = 'resolved') = ?5")
@@ -71,4 +72,51 @@ function board(db, column, key, playerId, limit) {
   return (column ? stmt.bind(limit, playerId || '', key) : stmt.bind(limit, playerId || '')).all().then(r => r.results);
 }
 
-module.exports = { savePick, getRound, countPicks, topPicks, playerPick, dueRounds, roundPicks, resolveRound, voidRound, board };
+// Picks so far in a round, oldest first (the live wheel).
+function livePicks(db, roundId, limit) {
+  return db.prepare(
+    'SELECT p.player_id, pl.nickname, p.hex, p.submitted_at FROM picks p JOIN players pl ON pl.id = p.player_id ' +
+    'WHERE p.round_id = ?1 ORDER BY p.submitted_at, p.player_id LIMIT ?2'
+  ).bind(roundId, limit).all().then(r => r.results);
+}
+
+function roundsNeedingStats(db, limit) {
+  return db.prepare("SELECT round_id FROM rounds WHERE status = 'resolved' AND stats_n IS NULL ORDER BY round_id LIMIT ?1")
+    .bind(limit).all().then(r => r.results.map(x => x.round_id));
+}
+
+// Marks a round as being scored (stats_n = -1) so a run that dies part way cannot block later rounds:
+// a claimed round is never handed out again. Returns false if another run claimed it first.
+function claimStats(db, roundId) {
+  return db.prepare('UPDATE rounds SET stats_n = -1 WHERE round_id = ?1 AND stats_n IS NULL').bind(roundId).run()
+    .then(r => r.meta.changes === 1);
+}
+
+// stats comes from chance.roundStats; its q and p scores are in the same order as picks (roundPicks rows).
+// Per-pick scores go in as one JSON array, so a round costs two statements however many picks it has.
+function saveStats(db, roundId, stats, picks) {
+  const scores = JSON.stringify(picks.map((p, i) => [p.playerId, stats.q[i], stats.p ? stats.p[i] : null]));
+  const pickScore = col => `(SELECT json_extract(value, '$[${col}]') FROM json_each(?1) WHERE json_extract(value, '$[0]') = picks.player_id)`;
+  return db.batch([
+    db.prepare('UPDATE rounds SET stats_n = ?1, q_mean = ?2, p_mean = ?3, null_var = ?4 WHERE round_id = ?5')
+      .bind(stats.n, stats.qMean, stats.pMean, stats.nullVar, roundId),
+    db.prepare(`UPDATE picks SET chance_q = ${pickScore(1)}, chance_p = ${pickScore(2)} WHERE round_id = ?2`)
+      .bind(scores, roundId),
+  ]);
+}
+
+const STATS_COLS = 'round_id AS roundId, stats_n AS n, q_mean AS qMean, p_mean AS pMean, null_var AS nullVar';
+
+function statsRows(db) {
+  return db.prepare(`SELECT ${STATS_COLS} FROM rounds WHERE status = 'resolved' AND stats_n > 0 ORDER BY round_id`)
+    .all().then(r => r.results);
+}
+
+function roundStatsRow(db, roundId) {
+  return db.prepare(`SELECT ${STATS_COLS}, status FROM rounds WHERE round_id = ?1`).bind(roundId).first();
+}
+
+module.exports = {
+  savePick, getRound, countPicks, topPicks, playerPick, dueRounds, roundPicks, resolveRound, voidRound, board,
+  roundsNeedingStats, claimStats, saveStats, statsRows, roundStatsRow, livePicks,
+};

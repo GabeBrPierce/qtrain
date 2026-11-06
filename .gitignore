@@ -2,3 +2,4 @@ node_modules/
 .wrangler/
 .superpowers/
 .playwright-mcp/
+_site/

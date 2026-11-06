@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<!-- Hue Hunch Wheel KaiStore banner source. Screenshot at 240x130 as JPG: no text, calm on the left
+     where the store draws the icon, name and subtitle. Same backdrop as the Grid banner. -->
+<html><head><meta charset="utf-8"><style>
+html, body { margin: 0; width: 240px; height: 130px; overflow: hidden; }
+body { background: radial-gradient(circle at 78% 50%, #3b3e86 0%, #2b2d5c 45%, #17183a 100%); position: relative; }
+.ring { position: absolute; left: 186px; top: 65px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.10); transform: translate(-50%, -50%); }
+canvas { position: absolute; left: 146px; top: 25px; }
+.dot { position: absolute; width: 8px; height: 8px; border-radius: 50%; opacity: .45; }
+.fade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(23,24,58,.55) 0%, rgba(23,24,58,0) 55%); }
+</style></head><body>
+<div class="ring" style="width:150px;height:150px;border-color:rgba(255,255,255,.07)"></div>
+<div class="ring" style="width:210px;height:210px;border-color:rgba(255,255,255,.045)"></div>
+<div class="ring" style="width:280px;height:280px;border-color:rgba(255,255,255,.03)"></div>
+<canvas id="w" width="80" height="80"></canvas>
+<div class="dot" style="left:120px;top:18px;background:#f5a524"></div>
+<div class="dot" style="left:132px;top:100px;background:#33b5ff"></div>
+<div class="dot" style="left:228px;top:10px;background:#3fcf5a"></div>
+<div class="dot" style="left:104px;top:72px;background:#e8449a;opacity:.3"></div>
+<div class="fade"></div>
+<script src="../../app/js/wheel.js"></script>
+<script>
+// The hue ring with the line mid-sweep, as on the app icon.
+var c = document.getElementById('w').getContext('2d'), C = 40, N = 180;
+function ang(f) { return f * 2 * Math.PI - Math.PI / 2; }
+for (var i = 0; i < N; i++) {
+  c.beginPath();
+  c.arc(C, C, 38, ang(i / N), ang((i + 1.6) / N));
+  c.arc(C, C, 24, ang((i + 1.6) / N), ang(i / N), true);
+  c.closePath();
+  c.fillStyle = 'rgb(' + QTWheel.hueRgb((i + 0.5) / N).join(',') + ')';
+  c.fill();
+}
+var a = ang(0.38);
+c.lineCap = 'round';
+[['rgba(0,0,0,.6)', 5], ['#fff', 2.5]].forEach(function (s) {
+  c.strokeStyle = s[0]; c.lineWidth = s[1];
+  c.beginPath(); c.moveTo(C, C); c.lineTo(C + Math.cos(a) * 39, C + Math.sin(a) * 39); c.stroke();
+});
+c.beginPath(); c.arc(C, C, 3.5, 0, 2 * Math.PI); c.fillStyle = '#fff'; c.fill();
+</script>
+</body></html>
