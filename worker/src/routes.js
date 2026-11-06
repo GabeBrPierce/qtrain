@@ -10,7 +10,7 @@ async function roundStats(d, roundId) {
   const row = await db.roundStatsRow(d, roundId);
   if (!row) return { roundId, status: 'none' };
   if (row.status === 'void') return { roundId, status: 'void' };
-  if (row.status !== 'resolved' || row.n == null) return { roundId, status: 'pending' };
+  if (row.status !== 'resolved' || row.n == null || row.n < 0) return { roundId, status: 'pending' }; // -1: being scored
   return { roundId, status: 'ready', n: row.n, quantum: pct(row.qMean), algorithm: pct(row.pMean), band: chance.bandFor(row.n, row.nullVar) };
 }
 

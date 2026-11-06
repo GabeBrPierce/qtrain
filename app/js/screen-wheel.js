@@ -85,9 +85,11 @@
       Sfx.play('undo');
       this.labels();
     },
-    key: function (k) {
+    key: function (k, repeat) {
       if (busy) return true;
       var ph = wheel.phase();
+      // A held key repeats; only a fresh press may stop the line, or a long hue press would also pick the shade.
+      if ((k === 'Enter' || k === '5') && repeat) return true;
       if ((k === 'Enter' || k === '5') && ph !== 'review') {
         var next = wheel.press(Date.now()); // the press time decides, not the last frame drawn
         Sfx.play('key', next === 'shade' ? 3 : 7);

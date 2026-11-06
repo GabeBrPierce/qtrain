@@ -113,3 +113,11 @@ test('all stats are empty-safe', async () => {
 test('unknown stats paths are not found', async () => {
   assert.equal((await routes.handleStats({ DB: createD1() }, ['stats', 'week'])).status, 404);
 });
+
+test('a round being scored reads as pending, not as ready', async () => {
+  const d = createD1();
+  await save(d, 'alpha-1234', '#112233', 1);
+  await DB.resolveRound(d, RID, 9, '#112233', [], RID + 90000, '#FFFFFF');
+  await DB.claimStats(d, RID);
+  assert.equal((await routes.handleStats({ DB: d }, ['stats', 'round', String(RID)])).body.status, 'pending');
+});

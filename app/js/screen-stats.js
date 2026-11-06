@@ -17,7 +17,7 @@
       '<div><i style="background:' + Q + '"></i>Quantum: picks scored against the beacon color</div>' +
       '<div><i style="background:' + A + '"></i>Algorithm: the same picks against a color from an ordinary computer random generator, drawn when the round was decided</div>' +
       '<div><i style="background:' + E + '"></i>Expected: 50%, what pure guessing averages</div>' +
-      '<div><i class="band"></i>Shaded band: where chance lands 95% of the time. Inside it = consistent with chance. About 1 round in 20 lands outside it by luck alone.</div>' +
+      '<div><i class="band"></i>Shaded band: where chance lands 95% of the time. Inside it = consistent with chance. About 1 round in 20 lands outside it by luck alone. On All rounds the orange band belongs to the Algorithm, since it covers fewer rounds.</div>' +
       '<div>Score: the share of all colors that were farther from a pick than the drawn color was.</div></div>';
   }
 
@@ -50,8 +50,20 @@
     return '<canvas id="st-chart" width="224" height="110"></canvas>' +
       '<div class="note">' + s.rounds + ' rounds &middot; ' + s.picks + ' picks &middot; oldest to newest</div>' +
       '<div class="note verdict">' + UI.esc(Stats.verdict('Quantum', s.quantum, s.band)) + '</div>' +
-      '<div class="note verdict">' + UI.esc(Stats.verdict('Algorithm', s.algorithm, s.band)) + '</div>' +
+      '<div class="note verdict">' + UI.esc(Stats.verdict('Algorithm', s.algorithm, s.algorithmBand)) + '</div>' +
       (s.algorithmSince ? '<div class="note">Algorithm control since ' + day(s.algorithmSince) + '.</div>' : '');
+  }
+
+  // Shades lo..hi over the points that have them (the algorithm band starts later than the quantum one).
+  function band(c, pts, lo, hi, color, x, y) {
+    var idx = [];
+    pts.forEach(function (p, i) { if (p[lo] != null) idx.push(i); });
+    if (idx.length < 2) return;
+    c.fillStyle = color;
+    c.beginPath();
+    idx.forEach(function (i, k) { c[k ? 'lineTo' : 'moveTo'](x(i), y(pts[i][hi])); });
+    for (var k = idx.length - 1; k >= 0; k--) c.lineTo(x(idx[k]), y(pts[idx[k]][lo]));
+    c.fill();
   }
 
   function chart(s) {
@@ -59,7 +71,7 @@
     if (!cv || !cv.getContext) return;
     var c = cv.getContext('2d'), w = cv.width, h = cv.height, L = 26, T = 6, B = 6;
     var pts = s.series, vals = [];
-    pts.forEach(function (p) { vals.push(p.q, p.a, p.lo, p.hi); });
+    pts.forEach(function (p) { vals.push(p.q, p.a, p.lo, p.hi, p.alo, p.ahi); });
     var sc = Stats.scale(vals);
     function y(v) { return T + (1 - (v - sc.min) / (sc.max - sc.min || 1)) * (h - T - B); }
     function x(i) { return pts.length < 2 ? (L + w) / 2 : L + i * (w - L - 4) / (pts.length - 1); }
@@ -71,6 +83,7 @@
     for (var i = pts.length - 1; i >= 0; i--) c.lineTo(x(i), y(pts[i].lo));
     if (pts.length < 2) { c.rect(L, y(pts[0].hi), w - L - 4, y(pts[0].lo) - y(pts[0].hi)); }
     c.fill();
+    band(c, pts, 'alo', 'ahi', 'rgba(242,177,52,0.13)', x, y);
 
     c.strokeStyle = E; c.lineWidth = 1;
     if (c.setLineDash) c.setLineDash([3, 3]);

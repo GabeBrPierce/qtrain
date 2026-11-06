@@ -85,7 +85,7 @@ test('summary caps the series at 40 points and keeps the last', () => {
 });
 
 test('summary of nothing is empty-safe', () => {
-  assert.deepEqual(C.summary([]), { rounds: 0, picks: 0, quantum: null, algorithm: null, algorithmRounds: 0, algorithmSince: null, band: null, series: [] });
+  assert.deepEqual(C.summary([]), { rounds: 0, picks: 0, quantum: null, algorithm: null, algorithmRounds: 0, algorithmSince: null, band: null, algorithmBand: null, series: [] });
 });
 
 test('bandFor centers on 50 and widens with variance', () => {
@@ -98,4 +98,20 @@ test('bands never leave 0..100', () => {
   assert.deepEqual(C.bandFor(1, 0.09), [0, 100]);
   const s = C.summary([{ roundId: 1, n: 1, qMean: 0.8, pMean: null, nullVar: 0.09 }]);
   assert.deepEqual([s.series[0].lo, s.series[0].hi, s.band[0], s.band[1]], [0, 100, 0, 100]);
+});
+
+test('the algorithm gets its own band from only the rounds that have a PRNG color', () => {
+  const old = Array.from({ length: 45 }, (_, i) => ({ roundId: i + 1, n: 10, qMean: 0.5, pMean: null, nullVar: 0.01 }));
+  const fresh = Array.from({ length: 5 }, (_, i) => ({ roundId: 100 + i, n: 10, qMean: 0.5, pMean: 0.6, nullVar: 0.01 }));
+  const s = C.summary(old.concat(fresh));
+  assert.ok(s.algorithmBand[1] - s.algorithmBand[0] > 2 * (s.band[1] - s.band[0]), JSON.stringify([s.band, s.algorithmBand]));
+  assert.ok(s.algorithmBand[1] > 58 && s.band[1] < 58, 'a 58% algorithm is inside its own band but outside the quantum one');
+  assert.equal(s.series[0].alo, null);
+  assert.ok(s.series[s.series.length - 1].alo < s.series[s.series.length - 1].lo);
+});
+
+test('no algorithm rounds means no algorithm band', () => {
+  const s = C.summary([{ roundId: 1, n: 3, qMean: 0.5, pMean: null, nullVar: 0.02 }]);
+  assert.equal(s.algorithmBand, null);
+  assert.equal(C.summary([]).algorithmBand, null);
 });

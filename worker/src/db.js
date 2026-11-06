@@ -85,14 +85,24 @@ function roundsNeedingStats(db, limit) {
     .bind(limit).all().then(r => r.results.map(x => x.round_id));
 }
 
+// Marks a round as being scored (stats_n = -1) so a run that dies part way cannot block later rounds:
+// a claimed round is never handed out again. Returns false if another run claimed it first.
+function claimStats(db, roundId) {
+  return db.prepare('UPDATE rounds SET stats_n = -1 WHERE round_id = ?1 AND stats_n IS NULL').bind(roundId).run()
+    .then(r => r.meta.changes === 1);
+}
+
 // stats comes from chance.roundStats; its q and p scores are in the same order as picks (roundPicks rows).
+// Per-pick scores go in as one JSON array, so a round costs two statements however many picks it has.
 function saveStats(db, roundId, stats, picks) {
-  const stmts = [db.prepare('UPDATE rounds SET stats_n = ?1, q_mean = ?2, p_mean = ?3, null_var = ?4 WHERE round_id = ?5')
-    .bind(stats.n, stats.qMean, stats.pMean, stats.nullVar, roundId)];
-  picks.forEach((p, i) => stmts.push(
-    db.prepare('UPDATE picks SET chance_q = ?1, chance_p = ?2 WHERE round_id = ?3 AND player_id = ?4')
-      .bind(stats.q[i], stats.p ? stats.p[i] : null, roundId, p.playerId)));
-  return db.batch(stmts);
+  const scores = JSON.stringify(picks.map((p, i) => [p.playerId, stats.q[i], stats.p ? stats.p[i] : null]));
+  const pickScore = col => `(SELECT json_extract(value, '$[${col}]') FROM json_each(?1) WHERE json_extract(value, '$[0]') = picks.player_id)`;
+  return db.batch([
+    db.prepare('UPDATE rounds SET stats_n = ?1, q_mean = ?2, p_mean = ?3, null_var = ?4 WHERE round_id = ?5')
+      .bind(stats.n, stats.qMean, stats.pMean, stats.nullVar, roundId),
+    db.prepare(`UPDATE picks SET chance_q = ${pickScore(1)}, chance_p = ${pickScore(2)} WHERE round_id = ?2`)
+      .bind(scores, roundId),
+  ]);
 }
 
 const STATS_COLS = 'round_id AS roundId, stats_n AS n, q_mean AS qMean, p_mean AS pMean, null_var AS nullVar';
@@ -108,5 +118,5 @@ function roundStatsRow(db, roundId) {
 
 module.exports = {
   savePick, getRound, countPicks, topPicks, playerPick, dueRounds, roundPicks, resolveRound, voidRound, board,
-  roundsNeedingStats, saveStats, statsRows, roundStatsRow, livePicks,
+  roundsNeedingStats, claimStats, saveStats, statsRows, roundStatsRow, livePicks,
 };

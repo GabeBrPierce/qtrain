@@ -74,28 +74,32 @@ function bandFor(n, variance) {
 const MAX_POINTS = 40;
 
 // rows: { roundId, n, qMean, pMean, nullVar }, oldest first. Rounds are independent, so their
-// variances add, weighted by pick count.
+// variances add, weighted by pick count. The algorithm only covers rounds with a PRNG color, so it gets
+// its own band from those rounds alone.
 function summary(rows) {
   rows = rows.filter(r => r.n > 0);
   if (!rows.length) {
-    return { rounds: 0, picks: 0, quantum: null, algorithm: null, algorithmRounds: 0, algorithmSince: null, band: null, series: [] };
+    return { rounds: 0, picks: 0, quantum: null, algorithm: null, algorithmRounds: 0, algorithmSince: null, band: null, algorithmBand: null, series: [] };
   }
-  let n = 0, q = 0, v = 0, an = 0, a = 0, algorithmRounds = 0, algorithmSince = null;
+  let n = 0, q = 0, v = 0, an = 0, a = 0, av = 0, algorithmRounds = 0, algorithmSince = null;
   const running = rows.map(r => {
     n += r.n; q += r.n * r.qMean; v += r.n * r.n * r.nullVar;
     if (r.pMean != null) {
-      an += r.n; a += r.n * r.pMean; algorithmRounds++;
+      an += r.n; a += r.n * r.pMean; av += r.n * r.n * r.nullVar; algorithmRounds++;
       if (algorithmSince == null) algorithmSince = r.roundId;
     }
-    const half = 1.96 * Math.sqrt(v) / n;
-    return { t: r.roundId, q: pct(q / n), a: an ? pct(a / an) : null, lo: clampPct(0.5 - half), hi: clampPct(0.5 + half) };
+    const half = 1.96 * Math.sqrt(v) / n, ahalf = an ? 1.96 * Math.sqrt(av) / an : null;
+    return {
+      t: r.roundId, q: pct(q / n), a: an ? pct(a / an) : null, lo: clampPct(0.5 - half), hi: clampPct(0.5 + half),
+      alo: an ? clampPct(0.5 - ahalf) : null, ahi: an ? clampPct(0.5 + ahalf) : null,
+    };
   });
   const last = running[running.length - 1];
   const L = running.length;
   const series = L <= MAX_POINTS ? running : Array.from({ length: MAX_POINTS }, (_, i) => running[Math.round(i * (L - 1) / (MAX_POINTS - 1))]);
   return {
     rounds: rows.length, picks: n, quantum: last.q, algorithm: last.a, algorithmRounds, algorithmSince,
-    band: [last.lo, last.hi], series,
+    band: [last.lo, last.hi], algorithmBand: last.alo == null ? null : [last.alo, last.ahi], series,
   };
 }
 

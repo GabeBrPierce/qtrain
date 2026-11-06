@@ -473,7 +473,7 @@
     if (!typing && ALIASES[k]) k = ALIASES[k];
     var sk = SOFT_IDS[k] && $(SOFT_IDS[k]);
     if (sk && sk.textContent && sk.className.indexOf('off') === -1) replay(sk, 'press');
-    if (current && current.key(k)) ev.preventDefault();
+    if (current && current.key(k, ev.repeat)) ev.preventDefault(); // repeat: KaiOS resends keydown while a key is held
   });
 
   // Mouse/touch support for desktop testing.
