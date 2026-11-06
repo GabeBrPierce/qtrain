@@ -63,11 +63,12 @@ function roundStats(picks, quantum, prng) {
 }
 
 const pct = x => Math.round(x * 1000) / 10;
+const clampPct = x => pct(Math.min(1, Math.max(0, x))); // a mean score cannot leave 0..1
 
 function bandFor(n, variance) {
   if (!n) return null;
   const half = 1.96 * Math.sqrt(variance);
-  return [pct(0.5 - half), pct(0.5 + half)];
+  return [clampPct(0.5 - half), clampPct(0.5 + half)];
 }
 
 const MAX_POINTS = 40;
@@ -87,7 +88,7 @@ function summary(rows) {
       if (algorithmSince == null) algorithmSince = r.roundId;
     }
     const half = 1.96 * Math.sqrt(v) / n;
-    return { t: r.roundId, q: pct(q / n), a: an ? pct(a / an) : null, lo: pct(0.5 - half), hi: pct(0.5 + half) };
+    return { t: r.roundId, q: pct(q / n), a: an ? pct(a / an) : null, lo: clampPct(0.5 - half), hi: clampPct(0.5 + half) };
   });
   const last = running[running.length - 1];
   const L = running.length;

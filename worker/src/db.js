@@ -72,6 +72,14 @@ function board(db, column, key, playerId, limit) {
   return (column ? stmt.bind(limit, playerId || '', key) : stmt.bind(limit, playerId || '')).all().then(r => r.results);
 }
 
+// Picks so far in a round, oldest first (the live wheel).
+function livePicks(db, roundId, limit) {
+  return db.prepare(
+    'SELECT p.player_id, pl.nickname, p.hex, p.submitted_at FROM picks p JOIN players pl ON pl.id = p.player_id ' +
+    'WHERE p.round_id = ?1 ORDER BY p.submitted_at, p.player_id LIMIT ?2'
+  ).bind(roundId, limit).all().then(r => r.results);
+}
+
 function roundsNeedingStats(db, limit) {
   return db.prepare("SELECT round_id FROM rounds WHERE status = 'resolved' AND stats_n IS NULL ORDER BY round_id LIMIT ?1")
     .bind(limit).all().then(r => r.results.map(x => x.round_id));
@@ -100,5 +108,5 @@ function roundStatsRow(db, roundId) {
 
 module.exports = {
   savePick, getRound, countPicks, topPicks, playerPick, dueRounds, roundPicks, resolveRound, voidRound, board,
-  roundsNeedingStats, saveStats, statsRows, roundStatsRow,
+  roundsNeedingStats, saveStats, statsRows, roundStatsRow, livePicks,
 };

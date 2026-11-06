@@ -93,3 +93,9 @@ test('bandFor centers on 50 and widens with variance', () => {
   assert.ok(a[0] < b[0] && a[1] > b[1]);
   assert.equal(Math.round((a[0] + a[1]) / 2), 50);
 });
+
+test('bands never leave 0..100', () => {
+  assert.deepEqual(C.bandFor(1, 0.09), [0, 100]);
+  const s = C.summary([{ roundId: 1, n: 1, qMean: 0.8, pMean: null, nullVar: 0.09 }]);
+  assert.deepEqual([s.series[0].lo, s.series[0].hi, s.band[0], s.band[1]], [0, 100, 0, 100]);
+});
